@@ -15,46 +15,19 @@ from models.autoencoder import SparseAutoencoder
 from models.model_loader import ModelLoader
 
 class SAETrainer:
-    def __init__(
-        self, 
-        model: nn.Module,
-        lr: float = 0.001,
-        l1_coef: float = 0.001,
-        use_wandb: bool = False,
-        wandb_config: dict = None
-    ):
+    def __init__(self, model, optimizer, config):
         self.model = model
-        self.optimizer = optim.Adam(model.parameters(), lr=lr)
-        self.l1_coef = l1_coef
-        self.use_wandb = use_wandb
-        
-        if use_wandb:
-            wandb.init(
-                project="sae-interpretability",
-                config=wandb_config or {
-                    "learning_rate": lr,
-                    "l1_coefficient": l1_coef,
-                    "model_type": model.__class__.__name__,
-                    "input_dim": model.input_dim,
-                    "hidden_dim": model.hidden_dim
-                }
-            )
-            wandb.watch(model, log_freq=100)
+        self.optimizer = optimizer  # Use the passed optimizer directly
+        self.config = config
 
-    def compute_loss(self, reconstructed, original, encoded):
-        """Compute reconstruction loss with L1 sparsity penalty"""
-        # MSE reconstruction loss
-        recon_loss = torch.nn.functional.mse_loss(reconstructed, original)
-        
-        # L1 sparsity loss
-        sparsity_loss = self.l1_coef * torch.norm(encoded, 1)
-        
+    def compute_loss(self, reconstructed, inputs, encoded):
+        recon_loss = torch.nn.functional.mse_loss(reconstructed, inputs)
+        sparsity_loss = self.config.l1_coefficient * torch.norm(encoded, 1)  # Use dot notation
         return recon_loss + sparsity_loss
 
     def train_step(self, batch):
         self.optimizer.zero_grad()
-        # Unpack batch tuple and ensure tensor
-        inputs = batch[0] if isinstance(batch, (list, tuple)) else batch
+        inputs = batch["pixel_values"]  # Extract tensor from dict
         reconstructed, encoded = self.model(inputs)
         loss = self.compute_loss(reconstructed, inputs, encoded)
         loss.backward()
@@ -63,24 +36,13 @@ class SAETrainer:
 
     def train_epoch(self, dataloader, epoch: int):
         self.model.train()
-        epoch_losses = []
-        
+        total_loss = 0
         for batch_idx, batch in enumerate(dataloader):
-            losses = self.train_step(batch)
-            epoch_losses.append(losses)
-            
-            if self.use_wandb:
-                # Log detailed metrics
-                wandb.log({
-                    "epoch": epoch,
-                    "batch": batch_idx,
-                    **losses,
-                    "activation_sparsity": self._compute_activation_sparsity(),
-                    "weight_histogram": wandb.Histogram(self.model.encoder.weight.data.cpu()),
-                    "activation_heatmap": wandb.Image(self._plot_activation_heatmap())
-                })
+            loss, encoded = self.train_step(batch)
+            total_loss += loss
         
-        return epoch_losses
+        avg_loss = total_loss / len(dataloader)
+        return avg_loss, encoded
 
     def _compute_activation_sparsity(self):
         """Compute fraction of zero activations"""
@@ -118,7 +80,7 @@ class SAETrainer:
                 loss, encoded = self.train_step(batch)
                 total_loss += loss
                 
-                if self.use_wandb:
+                if self.config['use_wandb']:
                     wandb.log({
                         "loss": loss,
                         "sparsity": (encoded > 0).float().mean().item()
@@ -150,7 +112,12 @@ def main():
     print(f"Encoder weight shape: {sae.encoder.weight.shape}")
 
     # Initialize trainer
-    trainer = SAETrainer(model=sae, use_wandb=args.wandb)
+    optimizer = optim.Adam(sae.parameters(), lr=0.001)
+    config = {
+        "l1_coef": 0.001,
+        "use_wandb": args.wandb
+    }
+    trainer = SAETrainer(model=sae, optimizer=optimizer, config=config)
 
     # Create dataloader
     dataset = torch.utils.data.TensorDataset(activations)

@@ -1,6 +1,8 @@
 import torch
 from torch.utils.data import DataLoader
 import argparse
+from torchvision import transforms
+import wandb
 
 import sys
 import os
@@ -47,20 +49,37 @@ def main():
     config = SAEConfig(
         input_dim=args.input_dim,
         hidden_dim=args.hidden_dim,
-        learning_rate=args.learning_rate,
+        learning_rate=args.lr,
         epochs=args.epochs,
         batch_size=args.batch_size
     )
 
     # Initialize model, optimizer, and trainer
-    model = SparseAutoencoder(config)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    model = SparseAutoencoder(
+        input_dim=config.input_dim,
+        hidden_dim=config.hidden_dim,
+        sparsity_param=config.sparsity_param
+    )
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     trainer = SAETrainer(model, optimizer, config)
 
-    # Load data
-    MNISTDataset = datasets.load_dataset("mnist")
+    # Define data transformation pipeline
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Lambda(lambda x: x.view(-1))  # Flatten 28x28 to 784
+    ])
+    
+    # Load and transform MNIST dataset
+    mnist_dataset = datasets.load_dataset("mnist")
+    train_dataset = mnist_dataset["train"].with_transform(
+        lambda examples: {
+            "pixel_values": torch.stack([transform(image) for image in examples["image"]])
+        }
+    )
+    
+    # Create DataLoader
     dataloader = DataLoader(
-        MNISTDataset(),
+        train_dataset, 
         batch_size=config.batch_size,
         shuffle=True
     )
@@ -68,9 +87,15 @@ def main():
     # Training loop with visualization
     print("Starting training...")
     for epoch in range(config.epochs):
-        losses = trainer.train_epoch(dataloader, epoch)
+        epoch_loss, encoded = trainer.train_epoch(dataloader, epoch)
+        if config.use_wandb:
+            wandb.log({
+                "epoch": epoch,
+                "loss": epoch_loss
+            })
         
         # Log to W&B
+        losses = trainer.get_losses()
         visualizer.log_training_progress(
             epoch=epoch,
             losses={k: sum(d[k] for d in losses)/len(losses) for k in losses[0]},
