@@ -30,9 +30,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from src.models.model_loader import ModelLoader
-from src.models.autoencoder import SparseAutoencoder
-from src.evaluation.analyzer import SAEAnalyzer
+from models.model_loader import ModelLoader
+from models.autoencoder import SparseAutoencoder
+from evaluation.analyzer import SAEAnalyzer
 
 class SAEDashboard:
     def __init__(self):

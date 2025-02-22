@@ -6,10 +6,23 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.models.autoencoder import SparseAutoencoder
-from src.training.trainer import SAETrainer
-from src.evaluation.analyzer import SAEAnalyzer
-from src.config.config import SAEConfig
+from models.autoencoder import SparseAutoencoder
+from training.trainer import SAETrainer
+from evaluation.analyzer import SAEAnalyzer
+from config.config import SAEConfig
+from visualization.wandb_viz import WandBVisualizer
+
+import datasets
+
+def get_activations_for_samples(model, samples):
+    model.eval()
+    with torch.no_grad():
+        activations = []
+        for sample in samples:
+            input_tensor = torch.tensor(sample).float().unsqueeze(0)
+            _, encoded = model(input_tensor)
+            activations.append(encoded)
+    return activations
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Sparse Autoencoder')
@@ -25,7 +38,6 @@ def main():
     args = parse_args()
     
     # Initialize W&B visualizer
-    from src.visualization.wandb_viz import WandBVisualizer
     visualizer = WandBVisualizer(
         model_name="sae-experiment",
         run_name=f"sae_{args.hidden_dim}_{args.lr}"
@@ -35,7 +47,7 @@ def main():
     config = SAEConfig(
         input_dim=args.input_dim,
         hidden_dim=args.hidden_dim,
-        lr=args.learning_rate,
+        learning_rate=args.learning_rate,
         epochs=args.epochs,
         batch_size=args.batch_size
     )
@@ -46,6 +58,7 @@ def main():
     trainer = SAETrainer(model, optimizer, config)
 
     # Load data
+    MNISTDataset = datasets.load_dataset("mnist")
     dataloader = DataLoader(
         MNISTDataset(),
         batch_size=config.batch_size,

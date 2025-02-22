@@ -44,3 +44,19 @@ class SAEAnalyzer:
             'active_neurons': active_neurons,
             'total_neurons': total_neurons
         }
+
+    def analyze_activation_patterns(self, activations: torch.Tensor) -> List[torch.Tensor]:
+        """Analyze activation patterns for each neuron"""
+        return [torch.unique(act, return_counts=True)[1] for act in activations.T]
+    
+    def analyze_neuron_correlations(self, activations: torch.Tensor) -> torch.Tensor:
+        """Compute pairwise correlation matrix between neurons"""
+        return torch.corrcoef(activations.T)
+    
+    def analyze_neuron_importance(self, activations: torch.Tensor) -> torch.Tensor:
+        """Compute neuron importance based on activation variance"""
+        return torch.var(activations, dim=0)
+    
+    def analyze_neuron_sparsity(self, activations: torch.Tensor) -> torch.Tensor:
+        """Compute neuron sparsity based on fraction of zero activations"""
+        return (activations == 0).float().mean(dim=0)

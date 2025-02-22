@@ -4,13 +4,15 @@ import torch.optim as optim
 from typing import Optional
 import wandb
 import argparse
+import io
+from PIL import Image
 
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from src.models.autoencoder import SparseAutoencoder
-from src.models.model_loader import ModelLoader
+from models.autoencoder import SparseAutoencoder
+from models.model_loader import ModelLoader
 
 class SAETrainer:
     def __init__(
