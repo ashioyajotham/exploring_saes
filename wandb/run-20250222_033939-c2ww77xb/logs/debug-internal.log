@@ -1,0 +1,15 @@
+{"time":"2025-02-22T03:39:39.9234401+03:00","level":"INFO","msg":"stream: starting","core version":"0.19.5","symlink path":"C:\\Users\\HomePC\\interp\\sae\\src\\wandb\\run-20250222_033939-c2ww77xb\\logs\\debug-core.log"}
+{"time":"2025-02-22T03:39:40.0461995+03:00","level":"INFO","msg":"created new stream","id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:40.0467643+03:00","level":"INFO","msg":"stream: started","id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:40.051299+03:00","level":"INFO","msg":"writer: Do: started","stream_id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:40.051299+03:00","level":"INFO","msg":"handler: started","stream_id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:40.0522969+03:00","level":"INFO","msg":"sender: started","stream_id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:40.6022313+03:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-02-22T03:39:40.7526828+03:00","level":"INFO","msg":"stream: closing","id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:40.7679972+03:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-02-22T03:39:40.7725001+03:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-02-22T03:39:43.1275973+03:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-02-22T03:39:43.5055483+03:00","level":"INFO","msg":"sender: closed","stream_id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:43.5055483+03:00","level":"INFO","msg":"writer: Close: closed","stream_id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:43.5055483+03:00","level":"INFO","msg":"handler: closed","stream_id":"c2ww77xb"}
+{"time":"2025-02-22T03:39:43.5060726+03:00","level":"INFO","msg":"stream: closed","id":"c2ww77xb"}

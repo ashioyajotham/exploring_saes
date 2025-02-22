@@ -1,0 +1,13 @@
+Starting training...
+Traceback (most recent call last):
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 156, in <module>
+    main()
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 153, in main
+    trainer.train(dataloader, args.epochs)
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 111, in train
+    loss, encoded = self.train_step(batch)
+                    ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 52, in train_step
+    loss = self.compute_loss(reconstructed, inputs, encoded)
+           ^^^^^^^^^^^^^^^^^
+AttributeError: 'SAETrainer' object has no attribute 'compute_loss'

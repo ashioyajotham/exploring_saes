@@ -1,0 +1,36 @@
+{
+  "os": "Windows-10-10.0.22631-SP0",
+  "python": "CPython 3.11.9",
+  "startedAt": "2025-01-30T21:34:29.057367Z",
+  "args": [
+    "--wandb",
+    "--epochs",
+    "20"
+  ],
+  "program": "C:\\Users\\HomePC\\interp\\sae\\src\\training\\trainer.py",
+  "codePath": "sae\\src\\training\\trainer.py",
+  "git": {
+    "remote": "https://github.com/ashioyajotham/interp.git",
+    "commit": "a9f5376d0a2bbb23f51271b9d85fa340f47cebda"
+  },
+  "email": "victorashioya960@gmail.com",
+  "root": "C:\\Users\\HomePC\\interp\\sae",
+  "host": "ashioyajotham",
+  "executable": "C:\\Users\\HomePC\\interp\\venv\\Scripts\\python.exe",
+  "codePathLocal": "src\\training\\trainer.py",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "disk": {
+    "/": {
+      "total": "511987150848",
+      "used": "362103853056"
+    }
+  },
+  "memory": {
+    "total": "17006247936"
+  },
+  "cpu": {
+    "count": 4,
+    "countLogical": 8
+  }
+}

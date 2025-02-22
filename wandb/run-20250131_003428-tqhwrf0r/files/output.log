@@ -1,0 +1,31 @@
+Starting training...
+Traceback (most recent call last):
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 163, in <module>
+    main()
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 160, in main
+    trainer.train(dataloader, args.epochs)
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 111, in train
+    loss, encoded = self.train_step(batch)
+                    ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\sae\src\training\trainer.py", line 51, in train_step
+    reconstructed, encoded = self.model(inputs)
+                             ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\venv\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\venv\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\sae\src\models\autoencoder.py", line 15, in forward
+    encoded = torch.relu(self.encoder(x))
+                         ^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\venv\Lib\site-packages\torch\nn\modules\module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\venv\Lib\site-packages\torch\nn\modules\module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HomePC\interp\venv\Lib\site-packages\torch\nn\modules\linear.py", line 125, in forward
+    return F.linear(input, self.weight, self.bias)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (11x768 and 11x64)

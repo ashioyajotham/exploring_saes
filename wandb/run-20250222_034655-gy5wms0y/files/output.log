@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\Users\HomePC\interp\sae\src\main.py", line 94, in <module>
+    main()
+  File "C:\Users\HomePC\interp\sae\src\main.py", line 38, in main
+    lr=args.learning_rate,
+       ^^^^^^^^^^^^^^^^^^
+AttributeError: 'Namespace' object has no attribute 'learning_rate'
