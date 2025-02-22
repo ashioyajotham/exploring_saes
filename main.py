@@ -2,29 +2,13 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 from torchvision import transforms
+from datasets import load_dataset
 import wandb
-
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.autoencoder import SparseAutoencoder
 from training.trainer import SAETrainer
-from evaluation.analyzer import SAEAnalyzer
 from config.config import SAEConfig
 from visualization.wandb_viz import WandBVisualizer
-
-import datasets
-
-def get_activations_for_samples(model, samples):
-    model.eval()
-    with torch.no_grad():
-        activations = []
-        for sample in samples:
-            input_tensor = torch.tensor(sample).float().unsqueeze(0)
-            _, encoded = model(input_tensor)
-            activations.append(encoded)
-    return activations
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Sparse Autoencoder')
@@ -51,10 +35,11 @@ def main():
         hidden_dim=args.hidden_dim,
         learning_rate=args.lr,
         epochs=args.epochs,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        use_wandb=args.use_wandb
     )
 
-    # Initialize model, optimizer, and trainer
+    # Initialize model and optimizer
     model = SparseAutoencoder(
         input_dim=config.input_dim,
         hidden_dim=config.hidden_dim,
@@ -63,69 +48,48 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     trainer = SAETrainer(model, optimizer, config)
 
-    # Define data transformation pipeline
+    # Data pipeline
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Lambda(lambda x: x.view(-1))  # Flatten 28x28 to 784
+        transforms.Lambda(lambda x: x.view(-1))
     ])
     
-    # Load and transform MNIST dataset
-    mnist_dataset = datasets.load_dataset("mnist")
+    mnist_dataset = load_dataset("mnist")
     train_dataset = mnist_dataset["train"].with_transform(
         lambda examples: {
             "pixel_values": torch.stack([transform(image) for image in examples["image"]])
         }
     )
     
-    # Create DataLoader
     dataloader = DataLoader(
-        train_dataset, 
+        train_dataset,
         batch_size=config.batch_size,
         shuffle=True
     )
 
-    # Training loop with visualization
     print("Starting training...")
     for epoch in range(config.epochs):
-        epoch_loss, encoded = trainer.train_epoch(dataloader, epoch)
+        # Train epoch
+        epoch_losses, encoded = trainer.train_epoch(dataloader, epoch)
+        
+        # Log metrics
         if config.use_wandb:
             wandb.log({
                 "epoch": epoch,
-                "loss": epoch_loss
+                **epoch_losses
             })
         
-        # Log to W&B
-        losses = trainer.get_losses()
-        visualizer.log_training_progress(
-            epoch=epoch,
-            losses={k: sum(d[k] for d in losses)/len(losses) for k in losses[0]},
-            model_state=model.state_dict()
-        )
-        
-        if epoch % 10 == 0:  # Every 10 epochs
-            # Get feature embeddings
+        # Feature visualization every 10 epochs
+        if epoch % 10 == 0:
             with torch.no_grad():
-                _, encoded = model(next(iter(dataloader)))
+                batch = next(iter(dataloader))
+                inputs = batch["pixel_values"]
+                _, encoded = model(inputs)
                 visualizer.log_feature_embeddings(
                     features=encoded,
                     metadata={"epoch": epoch}
                 )
-
-    # Final analysis
-    analyzer = SAEAnalyzer(model)
-    stats = analyzer.analyze_sparsity(dataloader)
     
-    # Log neuron analysis
-    sample_texts = ["The quick brown fox jumps over the lazy dog",
-                    "The five boxing wizards jump quickly"]
-    activations = get_activations_for_samples(model, sample_texts)
-    visualizer.log_neuron_analysis(
-        activations=activations,
-        neuron_ids=range(10),  # Analyze first 10 neurons
-        example_inputs=sample_texts
-    )
-    
-    visualizer.create_interactive_dashboard()
     visualizer.finish()
 
 if __name__ == "__main__":

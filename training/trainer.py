@@ -19,11 +19,19 @@ class SAETrainer:
         self.model = model
         self.optimizer = optimizer  # Use the passed optimizer directly
         self.config = config
+        self.current_losses = {}
 
     def compute_loss(self, reconstructed, inputs, encoded):
         recon_loss = torch.nn.functional.mse_loss(reconstructed, inputs)
         sparsity_loss = self.config.l1_coefficient * torch.norm(encoded, 1)  # Use dot notation
-        return recon_loss + sparsity_loss
+        total_loss = recon_loss + sparsity_loss
+        
+        self.current_losses = {
+            'reconstruction_loss': recon_loss.item(),
+            'sparsity_loss': sparsity_loss.item(),
+            'total_loss': total_loss.item()
+        }
+        return total_loss
 
     def train_step(self, batch):
         self.optimizer.zero_grad()
@@ -32,17 +40,27 @@ class SAETrainer:
         loss = self.compute_loss(reconstructed, inputs, encoded)
         loss.backward()
         self.optimizer.step()
-        return loss.item(), encoded
+        return self.current_losses, encoded
 
     def train_epoch(self, dataloader, epoch: int):
         self.model.train()
-        total_loss = 0
-        for batch_idx, batch in enumerate(dataloader):
-            loss, encoded = self.train_step(batch)
-            total_loss += loss
+        epoch_losses = {
+            'reconstruction_loss': 0.0,
+            'sparsity_loss': 0.0,
+            'total_loss': 0.0
+        }
         
-        avg_loss = total_loss / len(dataloader)
-        return avg_loss, encoded
+        for batch_idx, batch in enumerate(dataloader):
+            batch_losses, encoded = self.train_step(batch)
+            for k in epoch_losses:
+                epoch_losses[k] += batch_losses[k]
+        
+        # Average losses over batches
+        num_batches = len(dataloader)
+        for k in epoch_losses:
+            epoch_losses[k] /= num_batches
+            
+        return epoch_losses, encoded
 
     def _compute_activation_sparsity(self):
         """Compute fraction of zero activations"""
@@ -87,6 +105,9 @@ class SAETrainer:
                     })
                     
             print(f"Epoch {epoch}: Loss = {total_loss/len(dataloader):.4f}")
+
+    def get_losses(self):
+        return self.current_losses
 
 def main():
     parser = argparse.ArgumentParser()
