@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "C:\Users\HomePC\interp\sae\src\main.py", line 95, in <module>
-    main()
-  File "C:\Users\HomePC\interp\sae\src\main.py", line 35, in main
-    from src.config import SAEConfig
-ImportError: cannot import name 'SAEConfig' from 'src.config' (C:\Users\HomePC\interp\sae\src\config\__init__.py)
