@@ -14,6 +14,11 @@ class FrequencyAnalyzer:
         self.frequency_history.append(active.mean(0).cpu())
     
     def analyze(self) -> Dict[str, Any]:
+        if len(self.frequency_history) < 2:
+            return {
+                'insufficient_data': True,
+                'samples_collected': len(self.frequency_history)
+            }
         frequencies = torch.stack(self.frequency_history)
         mean_freq = frequencies.mean(0)
         
@@ -36,4 +41,28 @@ class FrequencyAnalyzer:
         return {
             'stability': self._compute_stability(frequencies),
             'trend': self._compute_trend(frequencies)
+        }
+    
+    def _compute_stability(self, frequencies):
+        """Compute stability of neuron activations over time"""
+        # Compute variance over time for each neuron
+        temporal_variance = torch.var(frequencies, dim=0)
+        return {
+            'mean_stability': float(1 - temporal_variance.mean()),
+            'min_stability': float(1 - temporal_variance.max()),
+            'unstable_neurons': int((temporal_variance > 0.1).sum())
+        }
+
+    def _compute_trend(self, frequencies):
+        """Compute activation trends over time"""
+        time_steps = torch.arange(len(frequencies))
+        # Compute correlation with time for each neuron
+        correlations = torch.tensor([
+            torch.corrcoef(torch.stack([time_steps, freq]))[0,1]
+            for freq in frequencies.T
+        ])
+        return {
+            'increasing': int((correlations > 0.5).sum()),
+            'decreasing': int((correlations < -0.5).sum()),
+            'stable': int((correlations.abs() <= 0.5).sum())
         }

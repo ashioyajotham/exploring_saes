@@ -4,11 +4,14 @@ import argparse
 from torchvision import transforms
 from datasets import load_dataset
 import wandb
+import sys
+from PyQt5.QtWidgets import QApplication
 
 from models.autoencoder import SparseAutoencoder
 from training.trainer import SAETrainer
 from config.config import SAEConfig
 from visualization.wandb_viz import WandBVisualizer
+from visualization.training_viz import TrainingVisualizer
 from experiments.activation_study import run_activation_comparison
 from experiments.frequency_analysis import FrequencyAnalyzer
 from experiments.concept_emergence import ConceptAnalyzer
@@ -74,11 +77,24 @@ def main():
     frequency_analyzer = FrequencyAnalyzer(model)
     concept_analyzer = ConceptAnalyzer(model, train_dataset)
 
+    # Initialize Qt application
+    app = QApplication(sys.argv)
+    viz = TrainingVisualizer()
+    viz.show()
+
     print("Starting training...")
     for epoch in range(config.epochs):
         # Train epoch
         epoch_losses, encoded = trainer.train_epoch(dataloader, epoch)
         frequency_analyzer.update(encoded)
+        
+        # Update visualization
+        viz.update_plots(
+            loss=epoch_losses['total_loss'],
+            activations=encoded,
+            hidden_weights=model.encoder.weight.data
+        )
+        app.processEvents()  # Update GUI
         
         # Log metrics
         if config.use_wandb:
@@ -109,6 +125,7 @@ def main():
                     })
     
     visualizer.finish()
+    sys.exit(app.exec_())
 
 if __name__ == "__main__":
     main()
