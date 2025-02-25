@@ -25,10 +25,36 @@ import torch
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import asyncio
+import nest_asyncio
+from functools import wraps
+
+# Configure event loop before any other imports
+nest_asyncio.apply()
+asyncio.set_event_loop(asyncio.new_event_loop())
+
+# Set page config first
+st.set_page_config(
+    page_title="SAE Visualization",
+    layout="wide"
+)
+
+def handle_torch_events(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except RuntimeError as e:
+            if "no running event loop" in str(e):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                return func(*args, **kwargs)
+            raise
+    return wrapper
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models.model_loader import ModelLoader
 from models.autoencoder import SparseAutoencoder
@@ -39,8 +65,8 @@ class SAEDashboard:
         self.initialize_page()
         self.setup_state()
         
+    @handle_torch_events
     def initialize_page(self):
-        st.set_page_config(layout="wide")
         st.title("Sparse Autoencoder Interpretability")
         
     def setup_state(self):
