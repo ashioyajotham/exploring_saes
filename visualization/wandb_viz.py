@@ -114,6 +114,21 @@ class WandBVisualizer:
             )
         })
 
+    def log_frequency_analysis(self, freq_stats, epoch):
+        wandb.log({
+            "epoch": epoch,
+            "frequency/high_freq_neurons": freq_stats['high_freq_neurons'],
+            "frequency/distribution": wandb.Histogram(freq_stats['mean_frequencies']),
+            "frequency/temporal": freq_stats['temporal_stats']
+        })
+    
+    def log_concept_analysis(self, concept_stats, epoch):
+        wandb.log({
+            "epoch": epoch,
+            "concepts/similarity": concept_stats['concept_similarity'],
+            "concepts/clusters": concept_stats['feature_clusters']
+        })
+
     def finish(self):
         """Close the W&B run"""
         wandb.finish()

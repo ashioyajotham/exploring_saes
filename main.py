@@ -9,6 +9,9 @@ from models.autoencoder import SparseAutoencoder
 from training.trainer import SAETrainer
 from config.config import SAEConfig
 from visualization.wandb_viz import WandBVisualizer
+from experiments.activation_study import run_activation_comparison
+from experiments.frequency_analysis import FrequencyAnalyzer
+from experiments.concept_emergence import ConceptAnalyzer
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train Sparse Autoencoder')
@@ -67,10 +70,15 @@ def main():
         shuffle=True
     )
 
+    # Initialize analyzers
+    frequency_analyzer = FrequencyAnalyzer(model)
+    concept_analyzer = ConceptAnalyzer(model, train_dataset)
+
     print("Starting training...")
     for epoch in range(config.epochs):
         # Train epoch
         epoch_losses, encoded = trainer.train_epoch(dataloader, epoch)
+        frequency_analyzer.update(encoded)
         
         # Log metrics
         if config.use_wandb:
@@ -79,7 +87,7 @@ def main():
                 **epoch_losses
             })
         
-        # Feature visualization every 10 epochs
+        # Feature visualization and analysis every 10 epochs
         if epoch % 10 == 0:
             with torch.no_grad():
                 batch = next(iter(dataloader))
@@ -89,6 +97,16 @@ def main():
                     features=encoded,
                     metadata={"epoch": epoch}
                 )
+                freq_stats = frequency_analyzer.analyze()
+                concept_stats = concept_analyzer.analyze_concepts()
+                
+                if config.use_wandb:
+                    wandb.log({
+                        "epoch": epoch,
+                        **epoch_losses,
+                        **freq_stats,
+                        **concept_stats
+                    })
     
     visualizer.finish()
 

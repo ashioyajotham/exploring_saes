@@ -15,10 +15,11 @@ from models.autoencoder import SparseAutoencoder
 from models.model_loader import ModelLoader
 
 class SAETrainer:
-    def __init__(self, model, optimizer, config):
+    def __init__(self, model, optimizer, config, analyzers=None):
         self.model = model
         self.optimizer = optimizer  # Use the passed optimizer directly
         self.config = config
+        self.analyzers = analyzers or {}
         self.current_losses = {}
 
     def compute_loss(self, reconstructed, inputs, encoded):
@@ -37,6 +38,11 @@ class SAETrainer:
         self.optimizer.zero_grad()
         inputs = batch["pixel_values"]  # Extract tensor from dict
         reconstructed, encoded = self.model(inputs)
+        
+        # Update analyzers
+        if 'frequency' in self.analyzers:
+            self.analyzers['frequency'].update(encoded)
+            
         loss = self.compute_loss(reconstructed, inputs, encoded)
         loss.backward()
         self.optimizer.step()
