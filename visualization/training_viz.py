@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 import pyqtgraph as pg
 import numpy as np
 import sys
+import torch
 
 class TrainingVisualizer(QMainWindow):
     def __init__(self):
@@ -17,11 +18,17 @@ class TrainingVisualizer(QMainWindow):
         # Plot windows
         self.loss_plot = pg.PlotWidget(title="Training Loss")
         self.activation_plot = pg.PlotWidget(title="Neuron Activations")
-        self.hidden_layer_plot = pg.ImageItem()
         
+        # Hidden layer visualization
+        graphics_layout = pg.GraphicsLayoutWidget()
+        view = graphics_layout.addViewBox()
+        self.hidden_layer_plot = pg.ImageItem()
+        view.addItem(self.hidden_layer_plot)
+        
+        # Add widgets to layout
         layout.addWidget(self.loss_plot)
         layout.addWidget(self.activation_plot)
-        layout.addWidget(pg.GraphicsLayoutWidget().addItem(self.hidden_layer_plot))
+        layout.addWidget(graphics_layout)
         
         # Data storage
         self.losses = []
@@ -32,8 +39,10 @@ class TrainingVisualizer(QMainWindow):
         self.losses.append(loss)
         self.loss_plot.plot(self.losses, clear=True)
         
-        # Update activation patterns
-        self.activation_plot.plot(activations.mean(0).cpu().numpy(), clear=True)
+        # Update activation patterns - detach before converting to numpy
+        with torch.no_grad():
+            activation_means = activations.mean(0).cpu().detach().numpy()
+            hidden_weights_np = hidden_weights.cpu().detach().numpy()
         
-        # Update hidden layer visualization
-        self.hidden_layer_plot.setImage(hidden_weights.cpu().numpy())
+        self.activation_plot.plot(activation_means, clear=True)
+        self.hidden_layer_plot.setImage(hidden_weights_np)

@@ -16,8 +16,18 @@ class FrequencyAnalyzer:
     def analyze(self) -> Dict[str, Any]:
         if len(self.frequency_history) < 2:
             return {
-                'insufficient_data': True,
-                'samples_collected': len(self.frequency_history)
+                'high_freq_neurons': 0,
+                'low_freq_neurons': 0,
+                'mean_frequencies': [],
+                'freq_distribution': {
+                    'percentiles': [0, 0, 0],
+                    'skewness': 0,
+                    'kurtosis': 0
+                },
+                'temporal_stats': {
+                    'stability': {'mean_stability': 0},
+                    'trend': {'stable': 0}
+                }
             }
         frequencies = torch.stack(self.frequency_history)
         mean_freq = frequencies.mean(0)

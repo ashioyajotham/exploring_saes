@@ -4,12 +4,19 @@ from typing import Dict, Any
 import wandb
 from pathlib import Path
 
-def run_activation_comparison(config):
+def run_activation_comparison(config, train_model_fn):
     """Compare different activation functions"""
+    if config.use_wandb:
+        wandb.init(
+            project="sae-interpretability",
+            name=f"activation_comparison_{config.hidden_dim}",
+            config=vars(config)
+        )
+    
     results = {}
     for activation in ['relu', 'jump_relu', 'topk']:
         config.activation_type = activation
-        model = train_model(config)
+        model = train_model_fn(config)
         results[activation] = analyze_model(model)
         
         if config.use_wandb:

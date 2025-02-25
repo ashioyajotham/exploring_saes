@@ -1,3 +1,38 @@
+"""
+Sparse Autoencoder Training and Analysis Pipeline
+==============================================
+
+This module orchestrates the training and analysis of sparse autoencoders (SAEs)
+for mechanistic interpretability research. It coordinates:
+
+1. Model initialization and training
+2. Real-time visualization
+3. Activation pattern analysis 
+4. Concept emergence tracking
+5. W&B experiment logging
+
+Components:
+----------
+- SAE Model: Custom autoencoder with configurable sparsity
+- Training: Batch processing with activation tracking
+- Analysis: Frequency patterns and concept formation
+- Visualization: Live training metrics and neuron behavior
+
+Usage:
+------
+```bash
+python main.py --hidden-dim 256 --lr 0.001 --epochs 100 --use-wandb
+```
+
+Returns:
+    argparse.Namespace: Parsed arguments including:
+        - hidden_dim: Dimension of latent space
+        - lr: Learning rate
+        - epochs: Number of training epochs
+        - batch_size: Training batch size
+        - use_wandb: Whether to log to W&B
+
+"""
 import torch
 from torch.utils.data import DataLoader
 import argparse
@@ -27,6 +62,16 @@ def parse_args():
     return parser.parse_args()
 
 def main():
+    """
+    Workflow:
+    1. Initialize model, optimizer, and datasets
+    2. Set up visualization and analysis tools
+    3. Train model while tracking:
+        - Loss metrics
+        - Activation patterns
+        - Feature emergence
+    4. Log results and visualizations
+    """
     args = parse_args()
     
     # Initialize W&B visualizer
