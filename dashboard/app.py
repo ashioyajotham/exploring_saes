@@ -20,6 +20,9 @@ streamlit run src/dashboard/app.py
 ```
 """
 
+import os
+os.environ['STREAMLIT_WATCH_TORCH'] = 'false'  # Disable watching PyTorch modules
+
 import streamlit as st
 import torch
 import numpy as np
@@ -39,17 +42,15 @@ st.set_page_config(
     layout="wide"
 )
 
-def handle_torch_events(func):
+def async_handler(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
-            return func(*args, **kwargs)
-        except RuntimeError as e:
-            if "no running event loop" in str(e):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                return func(*args, **kwargs)
-            raise
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return func(*args, **kwargs)
     return wrapper
 
 import sys
@@ -61,11 +62,11 @@ from models.autoencoder import SparseAutoencoder
 from evaluation.analyzer import SAEAnalyzer
 
 class SAEDashboard:
+    @async_handler
     def __init__(self):
         self.initialize_page()
         self.setup_state()
         
-    @handle_torch_events
     def initialize_page(self):
         st.title("Sparse Autoencoder Interpretability")
         
