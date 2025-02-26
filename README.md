@@ -120,6 +120,6 @@ Configuration options:
    - Sparsity evaluation
 
 ## References
-[1] "Towards Monosemanticity: Decomposing Language Models With Dictionary Learning", Anthropic (2024)
+[1] ["Towards Monosemanticity: Decomposing Language Models With Dictionary Learning"], Anthropic (2024)
 
 [2] "Sparse Autoencoders Find Highly Interpretable Features in Language Models", Lee et al. (2023)
