@@ -5,11 +5,16 @@ from config.config import SAEConfig  # Use this only
 import wandb
 from tqdm import tqdm
 import transformer_lens
+from visualization.ascii_viz import ASCIIVisualizer
 
 from models.autoencoder import SparseAutoencoder
 from experiments.frequency_analysis import FrequencyAnalyzer
 from experiments.concept_emergence import ConceptAnalyzer
 from experiments.transformer_data import TransformerActivationDataset
+
+# Add model caching
+_cached_model = None
+_cached_dataset = None
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run SAE Experiments')
@@ -26,16 +31,24 @@ def parse_args():
     return parser.parse_args()
 
 def get_dataset(config):
-    return TransformerActivationDataset(
-        model_name=config.model_name,
-        layer=config.layer,
-        n_samples=config.n_samples
-    )
+    global _cached_dataset
+    if _cached_dataset is None:
+        _cached_dataset = TransformerActivationDataset(
+            model_name=config.model_name,
+            layer=config.layer,
+            n_samples=config.n_samples
+        )
+    return _cached_dataset
 
 def train_model(config, track_frequency=True):
     """Train SAE with detailed tracking"""
+    # Get dataset first to determine input dimension
+    dataset = get_dataset(config)
+    sample = dataset[0]["pixel_values"]
+    input_dim = sample.shape[0]  # Get actual dimension from transformer
+
     model = SparseAutoencoder(
-        input_dim=784,
+        input_dim=input_dim,  # Use transformer's hidden dimension
         hidden_dim=config.hidden_dim,
         activation_type=config.activation_type
     )
@@ -80,21 +93,14 @@ def train_model(config, track_frequency=True):
     
     return model, frequency_analyzer, losses
 
-def compute_sparsity(model):
-    """Compute activation sparsity of the model"""
+def compute_sparsity(model, config):
+    """Compute activation sparsity using cached dataset"""
     with torch.no_grad():
-        total_zeros = 0
-        total_elements = 0
-        
-        # Get dataset sample
-        dataset = get_dataset()
+        dataset = get_dataset(config)
         dataloader = DataLoader(dataset, batch_size=64, shuffle=False)
         batch = next(iter(dataloader))
         
-        # Forward pass
         _, encoded = model(batch["pixel_values"])
-        
-        # Calculate sparsity
         zeros = (encoded.abs() < 1e-5).float().mean().item()
         return zeros
 
@@ -110,7 +116,7 @@ def run_activation_study(config):
             'final_loss': losses[-1],
             'loss_trend': losses,
             'frequency_stats': freq_analyzer.analyze() if freq_analyzer else None,
-            'sparsity': compute_sparsity(model)
+            'sparsity': compute_sparsity(model, config)  # Pass config
         }
     
     return results
@@ -140,30 +146,8 @@ def run_full_analysis(config):
         'concept_analysis': concept_stats
     }
     
-    print_detailed_results(results)
+    ASCIIVisualizer.print_results(results)
     return results
-
-def print_detailed_results(results):
-    """Print comprehensive results summary"""
-    print("\n╔════════════════════ EXPERIMENT RESULTS ════════════════════╗")
-    
-    print("\n=== Activation Function Comparison ===")
-    for act_type, stats in results['activation_comparison'].items():
-        print(f"\n{act_type.upper()}:")
-        print(f"  Final Loss: {stats['final_loss']:.4f}")
-        print(f"  Sparsity: {stats['sparsity']:.4f}")
-    
-    print("\n=== Frequency Analysis ===")
-    freq = results['frequency_analysis']
-    print(f"High Frequency Neurons: {freq['high_freq_neurons']}")
-    print(f"Mean Activation Rate: {freq['mean_frequencies'].mean():.4f}")
-    
-    print("\n=== Concept Analysis ===")
-    concept = results['concept_analysis']
-    print(f"Number of Clusters: {len(concept['feature_clusters'])}")
-    print(f"Average Similarity: {concept['concept_similarity']['mean_similarity']:.4f}")
-    
-    print("\n╚═══════════════════════════════════════════════════════════╝")
 
 if __name__ == "__main__":
     args = parse_args()
