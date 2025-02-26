@@ -7,7 +7,7 @@ import torch
 class TrainingVisualizer(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SAE Training Visualization")
+        self.setWindowTitle(f"SAE Training - {config.activation_type}")
         self.setGeometry(100, 100, 1200, 800)
         
         # Central widget and layout

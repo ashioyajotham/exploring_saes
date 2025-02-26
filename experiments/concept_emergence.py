@@ -14,6 +14,7 @@ class ConceptAnalyzer:
         self.model = model
         self.dataset = dataset
         self.concepts = {}
+        self.activation_type = model.activation_type
     
     def analyze_concepts(self) -> Dict[str, Any]:
         features = self._extract_features()

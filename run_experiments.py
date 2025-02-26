@@ -1,12 +1,12 @@
 import argparse
 import torch
 from torch.utils.data import DataLoader
+from torchvision import transforms
 from datasets import load_dataset
 import wandb
-from torchvision import transforms
+from tqdm import tqdm
 
 from models.autoencoder import SparseAutoencoder
-from experiments.activation_study import run_activation_comparison
 from experiments.frequency_analysis import FrequencyAnalyzer
 from experiments.concept_emergence import ConceptAnalyzer
 from config.config import SAEConfig
@@ -35,90 +35,138 @@ def get_dataset():
         }
     )
 
-def train_model(config):
-    # Initialize model and optimizer
+def train_model(config, track_frequency=True):
+    """Train SAE with detailed tracking"""
     model = SparseAutoencoder(
-        input_dim=784,  # MNIST dimension
+        input_dim=784,
         hidden_dim=config.hidden_dim,
         activation_type=config.activation_type
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    
+    # Setup tracking
+    frequency_analyzer = FrequencyAnalyzer(model) if track_frequency else None
+    losses = []
     
     # Get dataset
     dataset = get_dataset()
     dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
     
     # Training loop
-    for epoch in range(config.epochs):
-        total_loss = 0
+    progress_bar = tqdm(range(config.epochs), desc=f"Training {config.activation_type}")
+    for epoch in progress_bar:
+        epoch_loss = 0
         for batch in dataloader:
             optimizer.zero_grad()
             inputs = batch["pixel_values"]
             reconstructed, encoded = model(inputs)
             
-            # Update frequency analyzer
-            if hasattr(model, 'frequency_analyzer'):
-                model.frequency_analyzer.update(encoded)
+            if frequency_analyzer:
+                frequency_analyzer.update(encoded)
                 
             loss = torch.nn.functional.mse_loss(reconstructed, inputs)
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
+            epoch_loss += loss.item()
             
+        avg_loss = epoch_loss / len(dataloader)
+        losses.append(avg_loss)
+        
         if config.use_wandb:
-            # Log metrics separately from metadata
             wandb.log({
                 'epoch': epoch,
-                'loss': total_loss/len(dataloader)
-            }, commit=False)  # Don't commit yet
-            
-            # Log metadata as separate entry
-            wandb.run.summary.update({
-                'activation_type': config.activation_type
+                'loss': avg_loss,
+                'activation': config.activation_type
             })
             
-            wandb.log({})  # Commit the step
-            
-    return model
+        progress_bar.set_postfix({'loss': f'{avg_loss:.4f}'})
+    
+    return model, frequency_analyzer, losses
+
+def compute_sparsity(model):
+    """Compute activation sparsity of the model"""
+    with torch.no_grad():
+        total_zeros = 0
+        total_elements = 0
+        
+        # Get dataset sample
+        dataset = get_dataset()
+        dataloader = DataLoader(dataset, batch_size=64, shuffle=False)
+        batch = next(iter(dataloader))
+        
+        # Forward pass
+        _, encoded = model(batch["pixel_values"])
+        
+        # Calculate sparsity
+        zeros = (encoded.abs() < 1e-5).float().mean().item()
+        return zeros
+
+def run_activation_study(config):
+    """Compare different activation functions"""
+    results = {}
+    for activation in ['relu', 'jump_relu', 'topk']:
+        config.activation_type = activation
+        print(f"\nStudying {activation} activation:")
+        model, freq_analyzer, losses = train_model(config)
+        
+        results[activation] = {
+            'final_loss': losses[-1],
+            'loss_trend': losses,
+            'frequency_stats': freq_analyzer.analyze() if freq_analyzer else None,
+            'sparsity': compute_sparsity(model)
+        }
+    
+    return results
 
 def run_full_analysis(config):
-    print("Running activation comparison...")
-    activation_results = run_activation_comparison(config, train_model)
+    """Run comprehensive analysis suite"""
+    if config.use_wandb:
+        wandb.init(
+            project="sae-interpretability",
+            name=f"sae_{config.hidden_dim}_{config.activation_type}",
+            config=vars(config)
+        )
     
-    print("Analyzing frequency patterns...")
-    model = train_model(config)
-    frequency_analyzer = FrequencyAnalyzer(model)
-    freq_stats = frequency_analyzer.analyze()
+    print("\n=== Running Activation Function Study ===")
+    activation_results = run_activation_study(config)
     
-    print("Analyzing concept emergence...")
+    print("\n=== Training Final Model ===")
+    model, freq_analyzer, _ = train_model(config, track_frequency=True)
+    
+    print("\n=== Analyzing Concept Emergence ===")
     concept_analyzer = ConceptAnalyzer(model, get_dataset())
     concept_stats = concept_analyzer.analyze_concepts()
     
-    return {
+    results = {
         'activation_comparison': activation_results,
-        'frequency_analysis': freq_stats,
+        'frequency_analysis': freq_analyzer.analyze() if freq_analyzer else None,
         'concept_analysis': concept_stats
     }
+    
+    print_detailed_results(results)
+    return results
 
-def print_ascii_results(results):
-    """Print experiment results in ASCII art format"""
-    print("""
-╔══════════════════════════════════════════════╗
-║             Experiment Results               ║
-╠══════════════════════════════════════════════╣
-║                                             ║""")
+def print_detailed_results(results):
+    """Print comprehensive results summary"""
+    print("\n╔════════════════════ EXPERIMENT RESULTS ════════════════════╗")
     
-    print(f"║  Activation Functions Analyzed: {len(results['activation_comparison']):>8}        ║")
-    print(f"║  High Frequency Neurons: {results['frequency_analysis']['high_freq_neurons']:>13}        ║")
-    print(f"║  Concept Clusters Found: {len(results['concept_analysis']['feature_clusters']):>12}        ║")
-    
-    print("""║                                             ║
-║  Activation Stats:                          ║""")
+    print("\n=== Activation Function Comparison ===")
     for act_type, stats in results['activation_comparison'].items():
-        print(f"║    • {act_type:<10}: {stats.get('sparsity', 0):.3f} sparsity    ║")
+        print(f"\n{act_type.upper()}:")
+        print(f"  Final Loss: {stats['final_loss']:.4f}")
+        print(f"  Sparsity: {stats['sparsity']:.4f}")
     
-    print("""╚══════════════════════════════════════════════╝
-    """)
+    print("\n=== Frequency Analysis ===")
+    freq = results['frequency_analysis']
+    print(f"High Frequency Neurons: {freq['high_freq_neurons']}")
+    print(f"Mean Activation Rate: {freq['mean_frequencies'].mean():.4f}")
+    
+    print("\n=== Concept Analysis ===")
+    concept = results['concept_analysis']
+    print(f"Number of Clusters: {len(concept['feature_clusters'])}")
+    print(f"Average Similarity: {concept['concept_similarity']['mean_similarity']:.4f}")
+    
+    print("\n╚═══════════════════════════════════════════════════════════╝")
 
 if __name__ == "__main__":
     args = parse_args()
@@ -128,14 +176,8 @@ if __name__ == "__main__":
         learning_rate=args.lr,
         epochs=args.epochs,
         batch_size=args.batch_size,
-        use_wandb=args.use_wandb,
-        activation_type=args.activation  # Add activation type
+        activation_type=args.activation,
+        use_wandb=args.use_wandb
     )
     
     results = run_full_analysis(config)
-    print_ascii_results(results)
-    print("\nExperiment Results:")
-    print("==================")
-    print(f"Activation Comparisons: {len(results['activation_comparison'])} functions analyzed")
-    print(f"High Frequency Neurons: {results['frequency_analysis']['high_freq_neurons']}")
-    print(f"Concept Clusters: {len(results['concept_analysis']['feature_clusters'])}")

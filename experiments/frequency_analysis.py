@@ -7,6 +7,7 @@ class FrequencyAnalyzer:
     def __init__(self, model):
         self.model = model
         self.frequency_history = []
+        self.activation_type = model.activation_type
     
     def update(self, activations: torch.Tensor):
         """Update neuron activation frequencies"""
