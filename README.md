@@ -123,3 +123,5 @@ Configuration options:
 [1] ["Towards Monosemanticity: Decomposing Language Models With Dictionary Learning"](https://www.anthropic.com/research/towards-monosemanticity-decomposing-language-models-with-dictionary-learning), Anthropic (2024)
 
 [2] ["Sparse Autoencoders Find Highly Interpretable Features in Language Models"](https://arxiv.org/abs/2309.08600), Lee et al. (2023)
+
+[3] ["Scaling and evaluating sparse autoencoders"](https://cdn.openai.com/papers/sparse-autoencoders.pdf), OpenAI (2022)
