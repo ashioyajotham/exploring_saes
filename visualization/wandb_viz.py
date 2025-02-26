@@ -166,6 +166,22 @@ class WandBVisualizer:
             "concepts/clusters": concept_stats['feature_clusters']
         })
 
+    def log_training(self, data: dict):
+        """Log training metrics and visualizations"""
+        wandb.log({
+            'epoch': data['epoch'],
+            'loss': data['loss'],
+            'activation_heatmap': wandb.Image(
+                self._plot_activation_heatmap(data['encoded'])
+            ),
+            'feature_maps': wandb.Image(
+                self._plot_feature_maps(data['weights'])
+            ),
+            'activation_distribution': wandb.Histogram(
+                data['encoded'].abs().flatten().cpu().numpy()
+            )
+        })
+
     def finish(self):
         """Close the W&B run"""
         wandb.finish()

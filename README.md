@@ -121,5 +121,5 @@ Configuration options:
 
 ## References
 [1] "Towards Monosemanticity: Decomposing Language Models With Dictionary Learning", Anthropic (2024)
+
 [2] "Sparse Autoencoders Find Highly Interpretable Features in Language Models", Lee et al. (2023)
-[3] "Understanding and Improving Transformer Interpretability Through Sparse Coding", OpenAI (2023)
