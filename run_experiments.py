@@ -1,15 +1,15 @@
 import argparse
 import torch
 from torch.utils.data import DataLoader
-from torchvision import transforms
-from datasets import load_dataset
+from config.config import SAEConfig  # Use this only
 import wandb
 from tqdm import tqdm
+import transformer_lens
 
 from models.autoencoder import SparseAutoencoder
 from experiments.frequency_analysis import FrequencyAnalyzer
 from experiments.concept_emergence import ConceptAnalyzer
-from config.config import SAEConfig
+from experiments.transformer_data import TransformerActivationDataset
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run SAE Experiments')
@@ -20,19 +20,16 @@ def parse_args():
     parser.add_argument('--use-wandb', action='store_true')
     parser.add_argument('--activation', type=str, choices=['relu', 'jump_relu', 'topk'],
                        default='relu', help='Activation function type')
+    parser.add_argument('--model-name', type=str, default='gpt2-small')
+    parser.add_argument('--layer', type=int, default=0)
+    parser.add_argument('--n-samples', type=int, default=1000)
     return parser.parse_args()
 
-def get_dataset():
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Lambda(lambda x: x.view(-1))
-    ])
-    
-    mnist_dataset = load_dataset("mnist")
-    return mnist_dataset["train"].with_transform(
-        lambda examples: {
-            "pixel_values": torch.stack([transform(image) for image in examples["image"]])
-        }
+def get_dataset(config):
+    return TransformerActivationDataset(
+        model_name=config.model_name,
+        layer=config.layer,
+        n_samples=config.n_samples
     )
 
 def train_model(config, track_frequency=True):
@@ -49,7 +46,7 @@ def train_model(config, track_frequency=True):
     losses = []
     
     # Get dataset
-    dataset = get_dataset()
+    dataset = get_dataset(config)
     dataloader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
     
     # Training loop
@@ -177,7 +174,23 @@ if __name__ == "__main__":
         epochs=args.epochs,
         batch_size=args.batch_size,
         activation_type=args.activation,
-        use_wandb=args.use_wandb
+        use_wandb=args.use_wandb,
+        model_name=args.model_name,
+        layer=args.layer,
+        n_samples=args.n_samples
     )
     
     results = run_full_analysis(config)
+
+class SAEConfig:
+    def __init__(self, **kwargs):
+        self.input_dim = kwargs.get('input_dim', 784)
+        self.hidden_dim = kwargs.get('hidden_dim', 256)
+        self.learning_rate = kwargs.get('learning_rate', 0.001)
+        self.epochs = kwargs.get('epochs', 100)
+        self.batch_size = kwargs.get('batch_size', 64)
+        self.activation_type = kwargs.get('activation_type', 'relu')
+        self.use_wandb = kwargs.get('use_wandb', False)
+        self.model_name = kwargs.get('model_name', 'gpt2-small')
+        self.layer = kwargs.get('layer', 0)
+        self.n_samples = kwargs.get('n_samples', 1000)
