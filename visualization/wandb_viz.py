@@ -185,3 +185,34 @@ class WandBVisualizer:
     def finish(self):
         """Close the W&B run"""
         wandb.finish()
+
+    def _plot_activation_heatmap(self, activations):
+        """Generate heatmap of neuron activations"""
+        plt.figure(figsize=(10, 4))
+        plt.imshow(activations.cpu().detach().numpy().T, aspect='auto', cmap='viridis')
+        plt.colorbar()
+        plt.xlabel('Sample')
+        plt.ylabel('Neuron')
+        plt.title('Activation Patterns')
+        
+        # Save to buffer
+        buf = io.BytesIO()
+        plt.savefig(buf)
+        plt.close()
+        buf.seek(0)
+        return Image.open(buf)
+
+    def _plot_feature_maps(self, weights):
+        """Visualize learned features"""
+        plt.figure(figsize=(12, 4))
+        plt.imshow(weights.cpu().detach().numpy(), aspect='auto', cmap='RdBu')
+        plt.colorbar()
+        plt.xlabel('Input Dimension')
+        plt.ylabel('Feature')
+        plt.title('Feature Maps')
+        
+        buf = io.BytesIO()
+        plt.savefig(buf)
+        plt.close()
+        buf.seek(0)
+        return Image.open(buf)
