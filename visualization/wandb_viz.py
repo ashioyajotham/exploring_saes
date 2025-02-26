@@ -7,19 +7,56 @@ import io
 from typing import Optional, Dict, List
 
 class WandBVisualizer:
-    def __init__(self, model_name: str, run_name: Optional[str] = None):
-        self.run = wandb.init(
+    def __init__(self, model_name: str, run_name: str = None):
+        self.model_name = model_name
+        wandb.init(
             project="sae-interpretability",
             name=run_name,
-            tags=[model_name],
-            config={
-                "model": model_name,
-                "learning_rate": 0.001,
-                "hidden_dim": 64,
-                "sparsity_param": 0.1
-            }
+            config={"model_name": model_name}
         )
         
+    def log_config(self, config):
+        """Log experiment configuration"""
+        wandb.config.update(vars(config))
+        
+    def log_activation_study(self, activation_type: str, results: dict):
+        """Log activation function analysis"""
+        wandb.log({
+            f"{activation_type}/loss": results["final_loss"],
+            f"{activation_type}/sparsity": results["sparsity"],
+            f"{activation_type}/activation_heatmap": wandb.Image(
+                self._plot_activation_heatmap(results["frequency_stats"]["activations"])
+            ),
+            f"{activation_type}/feature_maps": wandb.Image(
+                self._plot_feature_maps(results["feature_weights"])
+            ),
+            f"{activation_type}/sparsity_dist": wandb.Histogram(
+                results["frequency_stats"]["activations"].abs().flatten().cpu()
+            )
+        })
+        
+    def log_results(self, results: dict):
+        """Log comprehensive analysis results"""
+        # Frequency analysis
+        freq = results["frequency_analysis"]
+        wandb.log({
+            "freq/high_freq_neurons": freq["high_freq_neurons"],
+            "freq/mean_activation": freq["mean_frequencies"].mean(),
+            "freq/activation_pattern": wandb.Image(
+                self._plot_frequency_pattern(freq["mean_frequencies"])
+            )
+        })
+        
+        # Concept analysis
+        concept = results["concept_analysis"]
+        wandb.log({
+            "concept/n_clusters": len(concept["feature_clusters"]),
+            "concept/similarity": concept["concept_similarity"]["mean_similarity"],
+            "concept/embedding": wandb.Image(
+                self._plot_concept_embedding(concept["embedding"])
+            )
+        })
+
     def log_feature_embeddings(self, features: torch.Tensor, metadata: Optional[Dict] = None):
         """Log feature embeddings for projection visualization"""
         wandb.log({

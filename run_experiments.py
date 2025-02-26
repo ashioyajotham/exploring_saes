@@ -1,11 +1,12 @@
 import argparse
 import torch
 from torch.utils.data import DataLoader
-from config.config import SAEConfig  # Use this only
+from config.config import SAEConfig
 import wandb
 from tqdm import tqdm
 import transformer_lens
 from visualization.ascii_viz import ASCIIVisualizer
+from visualization.wandb_viz import WandBVisualizer
 
 from models.autoencoder import SparseAutoencoder
 from experiments.frequency_analysis import FrequencyAnalyzer
@@ -40,7 +41,7 @@ def get_dataset(config):
         )
     return _cached_dataset
 
-def train_model(config, track_frequency=True):
+def train_model(config, track_frequency=True, visualizer=None):
     """Train SAE with detailed tracking"""
     # Get dataset first to determine input dimension
     dataset = get_dataset(config)
@@ -79,6 +80,14 @@ def train_model(config, track_frequency=True):
             optimizer.step()
             epoch_loss += loss.item()
             
+            if visualizer:
+                visualizer.log_training({
+                    'epoch': epoch,
+                    'loss': loss.item(),
+                    'encoded': encoded.detach(),
+                    'weights': model.encoder.weight.data
+                })
+            
         avg_loss = epoch_loss / len(dataloader)
         losses.append(avg_loss)
         
@@ -104,13 +113,13 @@ def compute_sparsity(model, config):
         zeros = (encoded.abs() < 1e-5).float().mean().item()
         return zeros
 
-def run_activation_study(config):
+def run_activation_study(config, visualizer=None):
     """Compare different activation functions"""
     results = {}
     for activation in ['relu', 'jump_relu', 'topk']:
         config.activation_type = activation
         print(f"\nStudying {activation} activation:")
-        model, freq_analyzer, losses = train_model(config)
+        model, freq_analyzer, losses = train_model(config, visualizer=visualizer)
         
         results[activation] = {
             'final_loss': losses[-1],
@@ -118,33 +127,38 @@ def run_activation_study(config):
             'frequency_stats': freq_analyzer.analyze() if freq_analyzer else None,
             'sparsity': compute_sparsity(model, config)  # Pass config
         }
+        
+        if visualizer:
+            visualizer.log_activation_study(activation, results[activation])
     
     return results
 
 def run_full_analysis(config):
-    """Run comprehensive analysis suite"""
-    if config.use_wandb:
-        wandb.init(
-            project="sae-interpretability",
-            name=f"sae_{config.hidden_dim}_{config.activation_type}",
-            config=vars(config)
-        )
+    visualizer = WandBVisualizer(
+        model_name=config.model_name,
+        run_name=f"sae_{config.hidden_dim}_{config.activation_type}"
+    )
     
-    print("\n=== Running Activation Function Study ===")
-    activation_results = run_activation_study(config)
+    # Log experiment configuration
+    visualizer.log_config(config)
     
-    print("\n=== Training Final Model ===")
-    model, freq_analyzer, _ = train_model(config, track_frequency=True)
+    # Track activation studies
+    activation_results = run_activation_study(config, visualizer)
     
-    print("\n=== Analyzing Concept Emergence ===")
-    concept_analyzer = ConceptAnalyzer(model, get_dataset())
+    # Track final model analysis
+    model, freq_analyzer, _ = train_model(config, track_frequency=True, visualizer=visualizer)
+    freq_stats = freq_analyzer.analyze()
+    
+    # Track concept emergence
+    concept_analyzer = ConceptAnalyzer(model, get_dataset(config))
     concept_stats = concept_analyzer.analyze_concepts()
     
-    results = {
+    # Log comprehensive results
+    visualizer.log_results({
         'activation_comparison': activation_results,
-        'frequency_analysis': freq_analyzer.analyze() if freq_analyzer else None,
+        'frequency_analysis': freq_stats,
         'concept_analysis': concept_stats
-    }
+    })
     
     ASCIIVisualizer.print_results(results)
     return results
@@ -165,16 +179,3 @@ if __name__ == "__main__":
     )
     
     results = run_full_analysis(config)
-
-class SAEConfig:
-    def __init__(self, **kwargs):
-        self.input_dim = kwargs.get('input_dim', 784)
-        self.hidden_dim = kwargs.get('hidden_dim', 256)
-        self.learning_rate = kwargs.get('learning_rate', 0.001)
-        self.epochs = kwargs.get('epochs', 100)
-        self.batch_size = kwargs.get('batch_size', 64)
-        self.activation_type = kwargs.get('activation_type', 'relu')
-        self.use_wandb = kwargs.get('use_wandb', False)
-        self.model_name = kwargs.get('model_name', 'gpt2-small')
-        self.layer = kwargs.get('layer', 0)
-        self.n_samples = kwargs.get('n_samples', 1000)
