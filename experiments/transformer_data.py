@@ -13,9 +13,8 @@ class TransformerActivationDataset(Dataset):
         activations = []
         with torch.no_grad():
             for _ in range(self.n_samples):
-                # Generate random sequence
-                input_ids = torch.randint(0, self.model.cfg.vocab_size, (1, 20))
-                # Get activations from specified layer
+                # Generate random sequence using n_vocab instead of vocab_size
+                input_ids = torch.randint(0, self.model.cfg.d_vocab, (1, 20))
                 _, cache = self.model.run_with_cache(input_ids)
                 layer_act = cache["mlp_out", self.layer][0]  # Shape: [seq_len, hidden_dim]
                 activations.append(layer_act.flatten())
