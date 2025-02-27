@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 class FrequencyAnalyzer:
     def __init__(self, model):
         self.model = model
+        self.activation_history = []
         self.frequency_history = []
         self.activation_type = model.activation_type
     
@@ -13,32 +14,28 @@ class FrequencyAnalyzer:
         """Update neuron activation frequencies"""
         active = (activations > 0).float()
         self.frequency_history.append(active.mean(0).cpu())
+        """Track activations during training"""
+        self.activation_history.append(activations.detach().cpu())
     
     def analyze(self) -> Dict[str, Any]:
         if len(self.frequency_history) < 2:
             return {
                 'high_freq_neurons': 0,
-                'low_freq_neurons': 0,
-                'mean_frequencies': [],
+                'mean_frequencies': torch.zeros(1),
                 'freq_distribution': {
-                    'percentiles': [0, 0, 0],
-                    'skewness': 0,
-                    'kurtosis': 0
-                },
-                'temporal_stats': {
-                    'stability': {'mean_stability': 0},
-                    'trend': {'stable': 0}
+                    'percentiles': [0, 0, 0]
                 }
             }
+    
         frequencies = torch.stack(self.frequency_history)
-        mean_freq = frequencies.mean(0)
+        mean_frequencies = frequencies.mean(0)  # Calculate mean frequencies
         
         return {
-            'mean_frequencies': mean_freq.numpy(),
-            'high_freq_neurons': (mean_freq > 0.1).sum().item(),
-            'low_freq_neurons': (mean_freq < 0.01).sum().item(),
-            'freq_distribution': self._analyze_distribution(mean_freq),
-            'temporal_stats': self._analyze_temporal_patterns(frequencies)
+            'high_freq_neurons': (mean_frequencies > 0.1).sum().item(),
+            'mean_frequencies': mean_frequencies,  # Return tensor directly
+            'freq_distribution': {
+                'percentiles': torch.quantile(mean_frequencies, torch.tensor([0.25, 0.5, 0.75])).tolist()
+            }
         }
     
     def _analyze_distribution(self, frequencies):

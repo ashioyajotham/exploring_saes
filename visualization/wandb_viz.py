@@ -2,6 +2,7 @@ import wandb
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import umap
 from PIL import Image
 import io
 from typing import Optional, Dict, List
@@ -12,7 +13,9 @@ class WandBVisualizer:
         wandb.init(
             project="sae-interpretability",
             name=run_name,
-            config={"model_name": model_name}
+            config={
+                "model_name": model_name
+            }
         )
         
     def log_config(self, config):
@@ -21,29 +24,41 @@ class WandBVisualizer:
         
     def log_activation_study(self, activation_type: str, results: dict):
         """Log activation function analysis"""
+        # Log metrics
         wandb.log({
-            f"{activation_type}/loss": results["final_loss"],
-            f"{activation_type}/sparsity": results["sparsity"],
-            f"{activation_type}/activation_heatmap": wandb.Image(
-                self._plot_activation_heatmap(results["frequency_stats"]["activations"])
-            ),
-            f"{activation_type}/feature_maps": wandb.Image(
+            f"metrics/{activation_type}/loss": results["final_loss"],
+            f"metrics/{activation_type}/sparsity": results["sparsity"]
+        })
+
+        # Log visualizations
+        wandb.log({
+            f"viz/{activation_type}/feature_maps": wandb.Image(
                 self._plot_feature_maps(results["feature_weights"])
             ),
-            f"{activation_type}/sparsity_dist": wandb.Histogram(
-                results["frequency_stats"]["activations"].abs().flatten().cpu()
+            f"viz/{activation_type}/activations": wandb.Image(
+                self._plot_activation_heatmap(results["frequency_stats"]["activations"])
             )
         })
+        
+        # Update run config instead of logging as metric
+        wandb.config.update({
+            f"activation_types/{activation_type}": {
+                "final_loss": results["final_loss"],
+                "sparsity": results["sparsity"]
+            }
+        }, allow_val_change=True)
         
     def log_results(self, results: dict):
         """Log comprehensive analysis results"""
         # Frequency analysis
         freq = results["frequency_analysis"]
+        mean_freq = torch.tensor(freq["mean_frequencies"]) if isinstance(freq["mean_frequencies"], list) else freq["mean_frequencies"]
+        
         wandb.log({
             "freq/high_freq_neurons": freq["high_freq_neurons"],
-            "freq/mean_activation": freq["mean_frequencies"].mean(),
+            "freq/mean_activation": mean_freq.mean().item(),
             "freq/activation_pattern": wandb.Image(
-                self._plot_frequency_pattern(freq["mean_frequencies"])
+                self._plot_frequency_pattern(mean_freq)
             )
         })
         
@@ -53,8 +68,8 @@ class WandBVisualizer:
             "concept/n_clusters": len(concept["feature_clusters"]),
             "concept/similarity": concept["concept_similarity"]["mean_similarity"],
             "concept/embedding": wandb.Image(
-                self._plot_concept_embedding(concept["embedding"])
-            )
+                self._plot_concept_embedding(concept.get("embedding", torch.zeros(1, 2)))
+            ) if "embedding" in concept else None
         })
 
     def log_feature_embeddings(self, features: torch.Tensor, metadata: Optional[Dict] = None):
@@ -210,6 +225,42 @@ class WandBVisualizer:
         plt.xlabel('Input Dimension')
         plt.ylabel('Feature')
         plt.title('Feature Maps')
+        
+        buf = io.BytesIO()
+        plt.savefig(buf)
+        plt.close()
+        buf.seek(0)
+        return Image.open(buf)
+
+    def _plot_frequency_pattern(self, frequencies):
+        """Plot neuron activation frequencies"""
+        plt.figure(figsize=(10, 4))
+        plt.bar(range(len(frequencies)), frequencies.cpu().numpy())
+        plt.xlabel('Neuron Index')
+        plt.ylabel('Activation Frequency')
+        plt.title('Neuron Firing Patterns')
+        
+        buf = io.BytesIO()
+        plt.savefig(buf)
+        plt.close()
+        buf.seek(0)
+        return Image.open(buf)
+
+    def _plot_concept_embedding(self, embeddings):
+        """Visualize concept embeddings using UMAP"""
+        plt.figure(figsize=(10, 10))
+        
+        # Reduce dimensionality for visualization if needed
+        if embeddings.shape[1] > 2:
+            reducer = umap.UMAP(random_state=42)
+            embedding_2d = reducer.fit_transform(embeddings.cpu().numpy())
+        else:
+            embedding_2d = embeddings.cpu().numpy()
+            
+        plt.scatter(embedding_2d[:, 0], embedding_2d[:, 1], alpha=0.5)
+        plt.title('Concept Embedding Space')
+        plt.xlabel('UMAP 1')
+        plt.ylabel('UMAP 2')
         
         buf = io.BytesIO()
         plt.savefig(buf)

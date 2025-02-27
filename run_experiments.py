@@ -12,6 +12,7 @@ from models.autoencoder import SparseAutoencoder
 from experiments.frequency_analysis import FrequencyAnalyzer
 from experiments.concept_emergence import ConceptAnalyzer
 from experiments.transformer_data import TransformerActivationDataset
+from experiments.checkpointing import CheckpointManager, ExperimentState
 
 # Add model caching
 _cached_model = None
@@ -33,7 +34,7 @@ def parse_args():
 
 def get_dataset(config):
     global _cached_dataset
-    if _cached_dataset is None:
+    if (_cached_dataset is None):
         _cached_dataset = TransformerActivationDataset(
             model_name=config.model_name,
             layer=config.layer,
@@ -114,52 +115,81 @@ def compute_sparsity(model, config):
         return zeros
 
 def run_activation_study(config, visualizer=None):
-    """Compare different activation functions"""
-    results = {}
-    for activation in ['relu', 'jump_relu', 'topk']:
-        config.activation_type = activation
-        print(f"\nStudying {activation} activation:")
-        model, freq_analyzer, losses = train_model(config, visualizer=visualizer)
-        
-        results[activation] = {
-            'final_loss': losses[-1],
-            'loss_trend': losses,
-            'frequency_stats': freq_analyzer.analyze() if freq_analyzer else None,
-            'sparsity': compute_sparsity(model, config)  # Pass config
-        }
-        
-        if visualizer:
-            visualizer.log_activation_study(activation, results[activation])
+    checkpoint_manager = CheckpointManager()
+    state = checkpoint_manager.load_checkpoint()
     
+    results = {}
+    activations = ['relu', 'jump_relu', 'topk']
+    
+    # Resume from checkpoint if exists
+    if state:
+        results = {act: {} for act in state.completed_activations}
+        start_idx = activations.index(state.current_activation)
+    else:
+        start_idx = 0
+        
+    for activation in activations[start_idx:]:
+        try:
+            config.activation_type = activation
+            print(f"\nStudying {activation} activation:")
+            model, freq_analyzer, losses = train_model(config, visualizer=visualizer)
+            
+            results[activation] = {
+                'final_loss': losses[-1],
+                'loss_trend': losses,
+                'frequency_stats': freq_analyzer.analyze() if freq_analyzer else None,
+                'sparsity': compute_sparsity(model, config),
+                'feature_weights': model.encoder.weight.data,
+                'model': model
+            }
+            
+            # Save checkpoint after each activation
+            state = ExperimentState(
+                completed_activations=list(results.keys()),
+                current_activation=activation,
+                epoch=config.epochs,
+                model_state=model.state_dict(),
+                optimizer_state=None,  # Add if needed
+                frequency_stats=results[activation]['frequency_stats'],
+                losses=losses
+            )
+            checkpoint_manager.save_checkpoint(state, config)
+            
+        except Exception as e:
+            print(f"\nError during {activation} training: {str(e)}")
+            print("You can resume from this point using the checkpoint")
+            raise e
+            
     return results
 
 def run_full_analysis(config):
+    """Run comprehensive analysis suite"""
     visualizer = WandBVisualizer(
         model_name=config.model_name,
         run_name=f"sae_{config.hidden_dim}_{config.activation_type}"
     )
     
-    # Log experiment configuration
-    visualizer.log_config(config)
-    
-    # Track activation studies
+    # Get activation study results and final model
+    print("\n=== Running Activation Function Study ===")
     activation_results = run_activation_study(config, visualizer)
     
-    # Track final model analysis
-    model, freq_analyzer, _ = train_model(config, track_frequency=True, visualizer=visualizer)
+    # Use last trained model instead of training new one
+    print("\n=== Analyzing Final Model ===")
+    model = activation_results[config.activation_type]['model']  # Get cached model
+    freq_analyzer = FrequencyAnalyzer(model)
     freq_stats = freq_analyzer.analyze()
     
-    # Track concept emergence
+    print("\n=== Analyzing Concept Emergence ===")
     concept_analyzer = ConceptAnalyzer(model, get_dataset(config))
     concept_stats = concept_analyzer.analyze_concepts()
     
-    # Log comprehensive results
-    visualizer.log_results({
+    results = {
         'activation_comparison': activation_results,
         'frequency_analysis': freq_stats,
         'concept_analysis': concept_stats
-    })
+    }
     
+    visualizer.log_results(results)
     ASCIIVisualizer.print_results(results)
     return results
 
