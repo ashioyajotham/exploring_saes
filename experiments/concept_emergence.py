@@ -32,6 +32,7 @@ from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 from scipy.spatial.distance import pdist, squareform
 from torch.nn import functional as F
+from torch.utils.data import DataLoader
 
 
 class ConceptAnalyzer:
@@ -123,6 +124,33 @@ class ConceptAnalyzer:
         with torch.no_grad():
             features = self.model.encoder.weight.data
             return features
+
+    def compute_attribution_scores(self) -> Dict[str, float]:
+        """
+        Compute concept attribution scores for features.
+        
+        Returns:
+            Dictionary containing:
+            - importance_scores: Feature importance values
+            - activation_sensitivity: Input sensitivity measures
+            - concept_specificity: Feature specificity scores
+        """
+        with torch.no_grad():
+            # Calculate feature importance
+            weights = self.model.encoder.weight.data
+            importance = weights.abs().mean(dim=1)
+            
+            # Compute activation sensitivity
+            test_batch = next(iter(DataLoader(self.dataset, batch_size=64)))
+            inputs = test_batch["pixel_values"]
+            _, encoded = self.model(inputs)
+            sensitivity = encoded.abs().mean(dim=0)
+            
+            return {
+                'importance_scores': importance.tolist(),
+                'activation_sensitivity': sensitivity.tolist(),
+                'concept_specificity': (importance * sensitivity).tolist()
+            }
 
     def _extract_features(self):
         """Extract learned features from encoder weights"""

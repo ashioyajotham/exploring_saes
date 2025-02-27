@@ -1,34 +1,6 @@
-Analysis of Current Implementation vs Research Goals:
+## References
+[1] ["Towards Monosemanticity: Decomposing Language Models With Dictionary Learning"](https://www.anthropic.com/research/towards-monosemanticity-decomposing-language-models-with-dictionary-learning), Anthropic (2024)
 
-1. **Current Status**
-- Using MNIST (simple digit recognition)
-- Basic SAE architecture
-- Three activation functions
-- Basic concept emergence tracking
+[2] ["Sparse Autoencoders Find Highly Interpretable Features in Language Models"](https://arxiv.org/abs/2309.08600), Lee et al. (2023)
 
-2. **Meets Research Goals**
-✓ Compares activation functions
-✓ Tracks high-frequency latents
-✓ Analyzes concept emergence
-✓ Studies architectural effects
-
-3. **Missing Elements**
-- More complex dataset needed
-- Deeper concept analysis
-- Relationship between data and learned features
-- Proper attribution of high-frequency neurons
-
-4. **Dataset Suggestions**
-- CIFAR-10 (natural images)
-- Fashion-MNIST (more complex patterns)
-- Tiny-ImageNet (hierarchical features)
-- TransformerLens activations (language features)
-
-5. **Research Alignment**
-Current implementation provides foundation but needs:
-- More sophisticated feature analysis
-- Better concept attribution
-- Richer dataset for meaningful patterns
-- Deeper investigation of activation patterns
-
-The project fits the basic science criteria but needs enhancement to provide deeper insights into concept learning and high-frequency latent behavior.
+[3] ["Scaling and evaluating sparse autoencoders"](https://cdn.openai.com/papers/sparse-autoencoders.pdf), OpenAI (2022)

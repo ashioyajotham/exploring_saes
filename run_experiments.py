@@ -1,3 +1,35 @@
+"""
+Sparse Autoencoder Experiment Runner
+===================================
+
+Main entry point for running SAE experiments on transformer activations.
+Handles training, analysis, visualization and checkpointing.
+
+Key Components:
+- Model training with multiple activation functions
+- Neuron frequency analysis
+- Concept emergence tracking
+- Experiment checkpointing
+- W&B and ASCII visualization
+
+Usage:
+------
+Basic training:
+    python run_experiments.py --hidden-dim 256 --epochs 100
+
+Transformer analysis:
+    python run_experiments.py --model-name gpt2-small --layer 0 --n-samples 1000 --use-wandb
+
+Functions:
+----------
+parse_args(): Configure experiment parameters
+get_dataset(): Load and cache transformer activations
+train_model(): Train SAE with specified config
+compute_sparsity(): Calculate activation sparsity
+run_activation_study(): Compare activation functions
+run_full_analysis(): Execute complete analysis suite
+"""
+
 import argparse
 import torch
 from torch.utils.data import DataLoader
@@ -19,6 +51,7 @@ _cached_model = None
 _cached_dataset = None
 
 def parse_args():
+    """Parse command line arguments for experiment configuration."""
     parser = argparse.ArgumentParser(description='Run SAE Experiments')
     parser.add_argument('--hidden-dim', type=int, default=256)
     parser.add_argument('--lr', type=float, default=0.001)
@@ -43,7 +76,19 @@ def get_dataset(config):
     return _cached_dataset
 
 def train_model(config, track_frequency=True, visualizer=None):
-    """Train SAE with detailed tracking"""
+    """
+    Train Sparse Autoencoder model.
+    
+    Args:
+        config: SAEConfig object with model/training parameters
+        track_frequency: Enable neuron firing rate tracking
+        visualizer: Optional W&B visualization handler
+        
+    Returns:
+        model: Trained SAE model
+        freq_analyzer: Frequency analysis results
+        losses: Training loss history
+    """
     # Get dataset first to determine input dimension
     dataset = get_dataset(config)
     sample = dataset[0]["pixel_values"]
@@ -115,6 +160,19 @@ def compute_sparsity(model, config):
         return zeros
 
 def run_activation_study(config, visualizer=None):
+    """
+    Compare different activation functions.
+    
+    Trains models with ReLU, JumpReLU and TopK activations,
+    tracking performance metrics and neuron behavior.
+    
+    Args:
+        config: Experiment configuration
+        visualizer: Optional visualization handler
+        
+    Returns:
+        Dictionary containing results for each activation
+    """
     checkpoint_manager = CheckpointManager()
     state = checkpoint_manager.load_checkpoint()
     
@@ -163,7 +221,21 @@ def run_activation_study(config, visualizer=None):
     return results
 
 def run_full_analysis(config):
-    """Run comprehensive analysis suite"""
+    """
+    Execute comprehensive analysis suite.
+    
+    Performs:
+    - Activation function comparison
+    - Frequency pattern analysis  
+    - Concept emergence tracking
+    - Result visualization
+    
+    Args:
+        config: Experiment configuration
+        
+    Returns:
+        Complete analysis results dictionary
+    """
     visualizer = WandBVisualizer(
         model_name=config.model_name,
         run_name=f"sae_{config.hidden_dim}_{config.activation_type}"

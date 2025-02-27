@@ -1,76 +1,108 @@
+"""
+Frequency Analysis Module
+========================
+
+Analyzes neuron firing patterns and activation frequencies in Sparse Autoencoders.
+Tracks how often neurons activate and identifies high/low frequency patterns.
+
+Key Components:
+- Activation frequency tracking
+- High-frequency neuron detection
+- Temporal pattern analysis
+- Distribution statistics
+
+References:
+[1] "Understanding Sparsity in Autoencoders", Ng et al.
+[2] "Feature Selectivity in Neural Networks", Zhou et al.
+"""
+
 import torch
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, List
 import matplotlib.pyplot as plt
 
 class FrequencyAnalyzer:
+    """
+    Tracks and analyzes neuron activation frequencies.
+    
+    Attributes:
+        model: SAE model being analyzed
+        activation_history: Raw activation values
+        frequency_history: Binary activation frequencies
+        activation_type: Type of activation function
+    """
+    
     def __init__(self, model):
+        """
+        Initialize frequency analyzer.
+        
+        Args:
+            model: Trained SAE model to analyze
+        """
         self.model = model
         self.activation_history = []
         self.frequency_history = []
         self.activation_type = model.activation_type
     
     def update(self, activations: torch.Tensor):
-        """Update neuron activation frequencies"""
+        """
+        Update neuron activation frequencies.
+        
+        Args:
+            activations: Current batch activations
+        """
         active = (activations > 0).float()
         self.frequency_history.append(active.mean(0).cpu())
-        """Track activations during training"""
         self.activation_history.append(activations.detach().cpu())
-    
+        
     def analyze(self) -> Dict[str, Any]:
+        """
+        Analyze activation patterns.
+        
+        Returns:
+            Dictionary containing:
+            - high_freq_neurons: Count of frequently firing neurons
+            - mean_frequencies: Average activation rates
+            - freq_distribution: Statistical distribution
+            - temporal_stats: Time-based patterns
+        """
         if len(self.frequency_history) < 2:
-            return {
-                'high_freq_neurons': 0,
-                'mean_frequencies': torch.zeros(1),
-                'freq_distribution': {
-                    'percentiles': [0, 0, 0]
-                }
-            }
-    
+            return self._empty_analysis()
+            
         frequencies = torch.stack(self.frequency_history)
-        mean_frequencies = frequencies.mean(0)  # Calculate mean frequencies
+        mean_freq = frequencies.mean(0)
         
         return {
-            'high_freq_neurons': (mean_frequencies > 0.1).sum().item(),
-            'mean_frequencies': mean_frequencies,  # Return tensor directly
-            'freq_distribution': {
-                'percentiles': torch.quantile(mean_frequencies, torch.tensor([0.25, 0.5, 0.75])).tolist()
-            }
+            'high_freq_neurons': (mean_freq > 0.1).sum().item(),
+            'mean_frequencies': mean_freq,
+            'freq_distribution': self._compute_distribution(mean_freq),
+            'temporal_stats': self._analyze_temporal_patterns(frequencies)
         }
-    
-    def _analyze_distribution(self, frequencies):
+        
+    def _empty_analysis(self) -> Dict[str, Any]:
+        """Return empty analysis for insufficient data."""
         return {
-            'percentiles': np.percentile(frequencies, [25, 50, 75]).tolist(),
-            'skewness': float(torch.mean((frequencies - frequencies.mean())**3)),
-            'kurtosis': float(torch.mean((frequencies - frequencies.mean())**4))
+            'high_freq_neurons': 0,
+            'mean_frequencies': torch.zeros(1),
+            'freq_distribution': {'percentiles': [0, 0, 0]},
+            'temporal_stats': {'stability': 0, 'trends': []}
         }
-    
-    def _analyze_temporal_patterns(self, frequencies):
+        
+    def _compute_distribution(self, frequencies: torch.Tensor) -> Dict[str, List[float]]:
+        """Calculate frequency distribution statistics."""
         return {
-            'stability': self._compute_stability(frequencies),
-            'trend': self._compute_trend(frequencies)
+            'percentiles': torch.quantile(
+                frequencies, 
+                torch.tensor([0.25, 0.5, 0.75])
+            ).tolist()
         }
-    
-    def _compute_stability(self, frequencies):
-        """Compute stability of neuron activations over time"""
-        # Compute variance over time for each neuron
-        temporal_variance = torch.var(frequencies, dim=0)
+        
+    def _analyze_temporal_patterns(self, frequencies: torch.Tensor) -> Dict[str, Any]:
+        """Analyze how activation patterns change over time."""
+        stability = torch.corrcoef(frequencies.T)[0, 1].item()
+        trends = torch.diff(frequencies.mean(1)).tolist()
+        
         return {
-            'mean_stability': float(1 - temporal_variance.mean()),
-            'min_stability': float(1 - temporal_variance.max()),
-            'unstable_neurons': int((temporal_variance > 0.1).sum())
-        }
-
-    def _compute_trend(self, frequencies):
-        """Compute activation trends over time"""
-        time_steps = torch.arange(len(frequencies))
-        # Compute correlation with time for each neuron
-        correlations = torch.tensor([
-            torch.corrcoef(torch.stack([time_steps, freq]))[0,1]
-            for freq in frequencies.T
-        ])
-        return {
-            'increasing': int((correlations > 0.5).sum()),
-            'decreasing': int((correlations < -0.5).sum()),
-            'stable': int((correlations.abs() <= 0.5).sum())
+            'stability': stability,
+            'trends': trends
         }

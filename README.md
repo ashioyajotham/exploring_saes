@@ -1,86 +1,110 @@
+```markdown
 # Exploring Sparse Autoencoders for Mechanistic Interpretability
 
 ## Overview
-Research project investigating how Sparse Autoencoders (SAEs) learn and represent features from transformer models. Focuses on understanding concept emergence, activation patterns, and neuron specialization.
+Research project investigating how Sparse Autoencoders (SAEs) learn and represent features from transformer models. Focuses on understanding concept emergence, activation patterns, and neuron specialization through multiple activation functions and comprehensive analysis tools.
 
 ## Key Research Questions
 - How do different activation functions affect feature learning in SAEs?
 - What drives concept emergence in hidden layers when training on transformer activations?
 - How reliable are activation frequency patterns as indicators of neuron specialization?
 - Can we quantify and visualize neuron behavior during training?
-
-## Project Architecture
-```
-exploring_saes/
-├── models/
-│   └── autoencoder.py      # SAE implementation
-├── experiments/
-│   ├── activation_study.py # Activation function analysis
-│   ├── frequency_analysis.py # Neuron firing patterns
-│   ├── concept_emergence.py # Feature learning analysis
-│   └── transformer_data.py  # Transformer integration
-├── visualization/
-│   ├── ascii_viz.py        # Terminal visualizations
-│   └── wandb_viz.py        # W&B dashboard integration
-└── config/
-    └── config.py           # Experiment configuration
-```
-
-## Features
-- **Model Architecture**
-  - Configurable hidden dimensions
-  - Multiple activation functions (ReLU, JumpReLU, TopK)
-  - Sparsity regularization
-  - Transformer activation processing
-
-- **Analysis Tools**
-  - Activation pattern tracking
-  - Feature clustering
-  - Concept emergence detection
-  - Neuron frequency analysis
-  - Sparsity measurements
-
-- **Visualization**
-  - Real-time ASCII training metrics
-  - W&B experiment tracking
-  - Feature map visualization
-  - Activation heatmaps
-  - Concept embedding plots
+- How do different sparsity mechanisms impact feature interpretability?
 
 ## Installation
+
+### Requirements
+- Python 3.8+
+- CUDA capable GPU (recommended)
+- 8GB+ RAM
+
+### Setup
 ```bash
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or
+
+# Activate environment
 .\venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/Mac
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install additional visualization tools
+pip install umap-learn wandb
+```
+
+## Project Structure
+```
+exploring_saes/
+├── experiments/
+│   ├── activation_study.py   # Activation function analysis
+│   ├── concept_emergence.py  # Feature learning tracking
+│   ├── frequency_analysis.py # Neuron firing patterns
+│   ├── checkpointing.py     # Experiment state management
+│   └── transformer_data.py   # Model integration
+├── models/
+│   └── autoencoder.py       # SAE implementation
+├── visualization/
+│   ├── ascii_viz.py         # Terminal visualizations
+│   └── wandb_viz.py         # W&B dashboard integration
+├── config/
+│   └── config.py            # Configuration management
+└── run_experiments.py       # Main entry point
 ```
 
 ## Usage
-Basic training:
+
+### Basic Training
 ```bash
-python run_experiments.py --hidden-dim 256 --lr 0.001 --epochs 100
+python run_experiments.py --hidden-dim 256 --epochs 100
 ```
 
-Transformer analysis:
+### Transformer Analysis
 ```bash
 python run_experiments.py --model-name gpt2-small --layer 0 --n-samples 1000 --use-wandb
 ```
 
-Configuration options:
-- `--hidden-dim`: Hidden layer size (default: 256)
-- `--lr`: Learning rate (default: 0.001)
-- `--epochs`: Training epochs (default: 100)
-- `--activation`: Activation function [relu|jump_relu|topk]
-- `--model-name`: Transformer model
-- `--layer`: Transformer layer to analyze
-- `--n-samples`: Number of activation samples
+### Configuration Options
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| --hidden-dim | Hidden layer size | 256 |
+| --lr | Learning rate | 0.001 |
+| --epochs | Training epochs | 100 |
+| --batch-size | Batch size | 64 |
+| --activation | Activation type [relu/jump_relu/topk] | relu |
+| --model-name | Transformer model | gpt2-small |
+| --layer | Layer to analyze | 0 |
+| --n-samples | Number of samples | 1000 |
+| --use-wandb | Enable W&B logging | False |
+
+## Features
+
+### Analysis Tools
+- Multiple activation function comparison
+- Neuron frequency analysis
+- Concept emergence tracking
+- Feature clustering
+- Attribution scoring
+- Sparsity measurements
+
+### Visualization
+- Real-time ASCII training metrics
+- W&B experiment tracking
+- Feature map visualization
+- Activation heatmaps
+- Concept embedding plots
+
+### Checkpointing
+Automatic experiment state saving enables:
+- Recovery from interruptions
+- Continuation of training
+- Progress tracking
+- Result caching
 
 ## Results Visualization
-1. **Terminal Output**
+
+### Terminal Output
 ```
 ╔════════════════════ EXPERIMENT RESULTS ════════════════════╗
 ║ Activation Function Comparison:
@@ -90,34 +114,22 @@ Configuration options:
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
-2. **W&B Dashboard**
-- Training metrics
+### W&B Dashboard
+Access experiment tracking at: https://wandb.ai/[username]/sae-interpretability
+
+Features:
+- Loss curves
 - Activation patterns
 - Feature maps
 - Concept embeddings
+- Neuron statistics
 
-## Dependencies
-- PyTorch >= 1.9.0
-- transformer-lens >= 1.0.0
-- Weights & Biases >= 0.19.7
-- scikit-learn >= 1.0.2
-- PyQt5 >= 5.15.0
-
-## Research Methodology
-1. **Data Collection**
-   - Extract activations from transformer layers
-   - Process and normalize activation patterns
-   - Cache for efficient training
-
-2. **Training Process**
-   - Compare activation functions
-   - Track neuron behavior
-   - Measure feature emergence
-
-3. **Analysis Pipeline**
-   - Frequency pattern analysis
-   - Concept clustering
-   - Sparsity evaluation
+## Error Recovery
+Training can be resumed using checkpoints:
+```bash
+# Training will continue from last successful state
+python run_experiments.py [previous-args] --resume
+```
 
 ## References
 [1] ["Towards Monosemanticity: Decomposing Language Models With Dictionary Learning"](https://www.anthropic.com/research/towards-monosemanticity-decomposing-language-models-with-dictionary-learning), Anthropic (2024)

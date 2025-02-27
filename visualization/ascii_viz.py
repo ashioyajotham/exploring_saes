@@ -15,9 +15,13 @@ class ASCIIVisualizer:
         print("║" + " ACTIVATION FUNCTION COMPARISON ".center(56) + "║")
         print("╠" + "═" * 56 + "╣")
         
-        for act_type, stats in results['activation_comparison'].items():
+        # Add safety checks
+        activation_results = results.get('activation_comparison', {})
+        for act_type, stats in activation_results.items():
+            if not isinstance(stats, dict):
+                continue
             print("║  " + f"{act_type.upper()}:".ljust(15) + "║")
-            print("║    " + f"Final Loss: {stats['final_loss']:.4f}".ljust(52) + "║")
+            print("║    " + f"Final Loss: {stats.get('final_loss', 0.0):.4f}".ljust(52) + "║")
             print("║    " + f"Sparsity: {stats['sparsity']:.4f}".ljust(52) + "║")
             print("║" + "─" * 56 + "║")
 
