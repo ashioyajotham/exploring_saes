@@ -114,7 +114,7 @@ Automatic experiment state saving enables:
 ```
 
 ### W&B Dashboard
-Access experiment tracking at: https://wandb.ai/[username]/sae-interpretability
+Access experiment tracking at: https://wandb.ai/ashioyajotham/sae-interpretability
 
 Features:
 - Loss curves
