@@ -22,7 +22,9 @@ class ASCIIVisualizer:
                 continue
             print("║  " + f"{act_type.upper()}:".ljust(15) + "║")
             print("║    " + f"Final Loss: {stats.get('final_loss', 0.0):.4f}".ljust(52) + "║")
-            print("║    " + f"Sparsity: {stats['sparsity']:.4f}".ljust(52) + "║")
+            # Safe access to sparsity
+            sparsity = stats.get('sparsity', 0.0)
+            print("║    " + f"Sparsity: {sparsity:.4f}".ljust(52) + "║")
             print("║" + "─" * 56 + "║")
 
         # Frequency Analysis

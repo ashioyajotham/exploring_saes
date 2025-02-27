@@ -1,4 +1,3 @@
-```markdown
 # Exploring Sparse Autoencoders for Mechanistic Interpretability
 
 ## Overview
