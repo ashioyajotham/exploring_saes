@@ -63,6 +63,8 @@ def parse_args():
     parser.add_argument('--model-name', type=str, default='gpt2-small')
     parser.add_argument('--layer', type=int, default=0)
     parser.add_argument('--n-samples', type=int, default=1000)
+    parser.add_argument('--resume', action='store_true',
+                       help='Resume from last checkpoint')
     return parser.parse_args()
 
 def get_dataset(config):
@@ -221,24 +223,13 @@ def run_activation_study(config, visualizer=None):
     return results
 
 def run_full_analysis(config):
-    """
-    Execute comprehensive analysis suite.
+    """Execute comprehensive analysis suite."""
+    # Set comparison mode flag
+    config.is_comparison = True
     
-    Performs:
-    - Activation function comparison
-    - Frequency pattern analysis  
-    - Concept emergence tracking
-    - Result visualization
-    
-    Args:
-        config: Experiment configuration
-        
-    Returns:
-        Complete analysis results dictionary
-    """
     visualizer = WandBVisualizer(
         model_name=config.model_name,
-        run_name=f"sae_{config.hidden_dim}_{config.activation_type}"
+        config=vars(config)
     )
     
     # Get activation study results and final model

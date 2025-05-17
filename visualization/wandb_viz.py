@@ -6,16 +6,27 @@ import umap
 from PIL import Image
 import io
 from typing import Optional, Dict, List
+from datetime import datetime
 
 class WandBVisualizer:
-    def __init__(self, model_name: str, run_name: str = None):
-        self.model_name = model_name
+    def __init__(self, model_name: str, config: dict):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_short = model_name.replace('-', '')
+        dim = config.get('hidden_dim', 256)
+        layer = config.get('layer', 0)
+        
+        # Check for comparison mode
+        if config.get('is_comparison', False):
+            run_type = 'comparison'
+            run_name = f"sae_{run_type}_{model_short}_l{layer}_d{dim}_{timestamp}"
+        else:
+            run_type = 'single'
+            run_name = f"sae_{run_type}_{model_short}_l{layer}_d{dim}_{config.get('activation_type', 'relu')}_{timestamp}"
+            
         wandb.init(
             project="sae-interpretability",
             name=run_name,
-            config={
-                "model_name": model_name
-            }
+            config=config
         )
         
     def log_config(self, config):
