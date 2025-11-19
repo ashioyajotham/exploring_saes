@@ -1,1 +1,1 @@
-{"config": {"input_dim": 784, "hidden_dim": 256, "learning_rate": 0.001, "epochs": 100, "batch_size": 64, "activation_type": "topk", "sparsity_param": 0.1, "k": 5, "min_activation": 1e-05, "sparsity_threshold": 0.1, "is_comparison": true, "experiment_name": null, "checkpoint_dir": 
+{"config": {"input_dim": 784, "hidden_dim": 256, "learning_rate": 0.001, "epochs": 100, "batch_size": 64, "activation_type": "relu", "sparsity_param": 0.1, "k": 5, "min_activation": 1e-05, "sparsity_threshold": 0.1, "is_comparison": true, "experiment_name": null, "checkpoint_dir": 
