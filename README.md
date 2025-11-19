@@ -117,6 +117,25 @@ python run_experiments.py --hidden-dim 256 --epochs 100
 python run_experiments.py --model-name gpt2-small --layer 0 --n-samples 1000 --use-wandb
 ```
 
+### Programmatic Usage
+
+If you prefer to harvest activations and use the dataset directly from Python, here's a minimal example:
+
+```py
+from experiments.transformer_data import TransformerActivationDataset
+import torch
+
+# Create dataset (harvests activations and caches them in memory)
+ds = TransformerActivationDataset(model_name='gpt2-small', layer=0, n_samples=1000)
+
+# Use a PyTorch DataLoader for batching
+loader = torch.utils.data.DataLoader(ds, batch_size=64, shuffle=True)
+
+for batch in loader:
+  x = batch['pixel_values']  # shape: (batch_size, features)
+  # pass `x` into your SAE training loop
+```
+
 ### Configuration Options
 
 | Parameter | Description | Default |

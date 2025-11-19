@@ -18,24 +18,32 @@ class CheckpointManager:
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(exist_ok=True)
     
-    def _tensor_to_list(self, obj):
-        """Convert tensors to native Python types"""
+    def _serialize(self, obj):
+        """
+        Recursively convert objects that are not JSON-serializable into
+        native Python types. Handles `torch.Tensor`, `pathlib.Path`, lists,
+        tuples and dicts.
+        """
         if isinstance(obj, torch.Tensor):
             return obj.cpu().detach().tolist()
-        elif isinstance(obj, dict):
-            return {k: self._tensor_to_list(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._tensor_to_list(item) for item in obj]
+        if isinstance(obj, Path):
+            return str(obj)
+        if isinstance(obj, dict):
+            return {k: self._serialize(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._serialize(item) for item in obj]
+        if isinstance(obj, tuple):
+            return [self._serialize(item) for item in obj]
         return obj
 
     def save_checkpoint(self, state: ExperimentState, config):
         checkpoint = {
-            'config': asdict(config),
-            'completed_activations': state.completed_activations,
-            'current_activation': state.current_activation,
+            'config': self._serialize(asdict(config)),
+            'completed_activations': self._serialize(state.completed_activations),
+            'current_activation': self._serialize(state.current_activation),
             'epoch': state.epoch,
-            'frequency_stats': self._tensor_to_list(state.frequency_stats),
-            'losses': self._tensor_to_list(state.losses)
+            'frequency_stats': self._serialize(state.frequency_stats),
+            'losses': self._serialize(state.losses)
         }
         
         # Save model and optimizer states separately
@@ -46,7 +54,7 @@ class CheckpointManager:
         
         # Save experiment state
         with open(self.save_dir / 'experiment_state.json', 'w') as f:
-            json.dump(checkpoint, f)
+            json.dump(checkpoint, f, indent=2)
     
     def load_checkpoint(self):
         """Load checkpoint with error handling"""
