@@ -114,8 +114,13 @@ python run_experiments.py --hidden-dim 256 --epochs 100
 ### Transformer Analysis
 
 ```bash
-python run_experiments.py --model-name gpt2-small --layer 0 --n-samples 1000 --use-wandb
+python run_experiments.py --model-name gpt2-small --layer 0 --n-samples 10000 --seq-len 20 --use-wandb
 ```
+
+Notes:
+
+- Default `n_samples` is now `10000` (total tokens ~= `n_samples * seq_len`).
+- Use `--seq-len` to control the token sequence length sampled from the transformer (default: `20`).
 
 ### Programmatic Usage
 
@@ -147,8 +152,50 @@ for batch in loader:
 | --activation | Activation type [relu/jump_relu/topk] | relu |
 | --model-name | Transformer model | gpt2-small |
 | --layer | Layer to analyze | 0 |
-| --n-samples | Number of samples | 1000 |
+| --n-samples | Number of samples | 10000 |
 | --use-wandb | Enable W&B logging | False |
+| --seq-len | Token sequence length used when sampling | 20 |
+| --normalize-activations | Normalize transformer activations (zero-mean, unit-std) | True |
+| --no-normalize | Disable activation normalization | False |
+| --dead-resample | Enable dead-neuron resampling during training | True |
+| --no-dead-resample | Disable dead-neuron resampling | False |
+| --dead-threshold | Threshold for considering a neuron "dead" (mean firing rate) | 0.001 |
+
+### Quick Smoke Test
+
+Run a very short experiment to validate the code path and flags without waiting for a full training run:
+
+```bash
+python run_experiments.py --n-samples 100 --seq-len 10 --epochs 2 --activation relu
+```
+
+This performs a small harvest (100 samples) and trains for 2 epochs — useful for confirming everything runs end-to-end.
+
+### Recommended Hyperparameters
+
+These settings are a starting point for avoiding "dead" features and getting stable SAE training on transformer activations.
+
+- Data volume:
+  - `--n-samples`: 10000 or higher (default now 10000). Aim for 10k–100k samples depending on compute.
+  - `--seq-len`: 20 (default). Increasing `seq-len` multiplies token diversity.
+
+- Optimization:
+  - `--lr` (learning rate): 1e-3 -> start at 1e-3, reduce to 5e-4 or 1e-4 if loss collapses (cliff then flatline).
+  - `--batch-size`: 64 (default). Increase to 128–256 if you have GPU memory.
+  - `--epochs`: 100 (default). For large `n-samples`, scale epochs down or use more data per epoch.
+
+- Sparsity and activations:
+  - `--activation`: `relu` is stable; `topk` enforces strong sparsity but may need more data and a larger hidden dim.
+  - For `topk`, increase `k` (in `config`) to allow more active features when reconstruction is poor.
+  - Keep `--normalize-activations` enabled to stabilize training.
+
+- Dead-neuron handling:
+  - `--dead-resample` (enabled by default) will try to reinitialize low-firing neurons during training.
+  - `--dead-threshold` default `0.001` is conservative; adjust upward (e.g., `0.005`) if many neurons are flagged as dead too early.
+
+- Practical tips:
+  - If you see the loss drop then flatline: reduce `--lr` and increase data (`--n-samples`).
+  - Monitor `mean_activation_rate` and `high_freq_neurons` in W&B — aim for non-zero mean activation and a small but non-trivial number of high-frequency neurons.
 
 ## Features
 
@@ -202,6 +249,33 @@ Features:
 - Feature maps
 - Concept embeddings
 - Neuron statistics
+
+### Weights & Biases (W&B) Usage
+
+Quick start:
+
+- Install and login:
+
+```bash
+pip install wandb
+wandb login
+```
+
+- Run an experiment with W&B enabled:
+
+```bash
+python run_experiments.py --use-wandb --model-name gpt2-small --n-samples 10000
+```
+
+- Recommended W&B options:
+
+  - Use `--use-wandb` to enable logging.
+  - The run is created under project `sae-interpretability` by default; change the project in `config/config.py` or pass a `wandb` config programmatically if you use the API.
+
+Notes:
+
+- W&B stores model metrics, activation snapshots and images (feature maps, UMAP plots). Large runs may produce many artifacts; consider sampling or limiting visualization frequency with `config.log_freq`.
+- If you want reproducible runs, set the seed and record it in `wandb.config`.
 
 ## Error Recovery
 

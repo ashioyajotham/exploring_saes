@@ -66,10 +66,22 @@ class TransformerActivationDataset(Dataset):
         activations (torch.Tensor): Cached activation tensor.
     """
 
-    def __init__(self, model_name="gpt2-small", layer=0, n_samples=1000):
+    def __init__(self, model_name="gpt2-small", layer=0, n_samples=1000, seq_len=20, normalize=True):
+        """
+        Args:
+            model_name: HuggingFace/TransformerLens model id
+            layer: layer index to harvest activations from
+            n_samples: number of random sequences / activations to collect
+            seq_len: token sequence length used when sampling random inputs
+            normalize: whether to normalize activations (zero-mean, unit-std)
+        """
         self.model = HookedTransformer.from_pretrained(model_name)
         self.layer = layer
         self.n_samples = n_samples
+        self.seq_len = seq_len
+        self.normalize = normalize
+        self.mean = None
+        self.std = None
         self.activations = self._collect_activations()
         
     def _collect_activations(self):
@@ -85,12 +97,23 @@ class TransformerActivationDataset(Dataset):
             for _ in range(self.n_samples):
                 # Generate a short random token sequence. TransformerLens
                 # configs expose their vocabulary dimension as `d_vocab`.
-                input_ids = torch.randint(0, self.model.cfg.d_vocab, (1, 20))
+                input_ids = torch.randint(0, self.model.cfg.d_vocab, (1, self.seq_len))
                 _, cache = self.model.run_with_cache(input_ids)
                 # 'mlp_out' is a common key for MLP outputs in HookedTransformer
                 layer_act = cache["mlp_out", self.layer][0]  # [seq_len, hidden_dim]
                 activations.append(layer_act.flatten())
-        return torch.stack(activations)
+
+        stacked = torch.stack(activations)
+
+        # Optionally normalize activations to zero-mean, unit-std per-feature
+        if self.normalize:
+            self.mean = stacked.mean(0, keepdim=True)
+            self.std = stacked.std(0, unbiased=False, keepdim=True)
+            # avoid division by zero
+            self.std[self.std == 0] = 1.0
+            stacked = (stacked - self.mean) / (self.std + 1e-9)
+
+        return stacked
     
     def __len__(self):
         return len(self.activations)

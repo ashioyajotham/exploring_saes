@@ -4,13 +4,13 @@ from pathlib import Path
 
 @dataclass
 class SAEConfig:
-    # Core model parameters
-    input_dim: int
-    hidden_dim: int
-    learning_rate: float
-    epochs: int
-    batch_size: int
-    activation_type: str
+    # Core model parameters (centralized defaults)
+    input_dim: int = 784
+    hidden_dim: int = 256
+    learning_rate: float = 0.001
+    epochs: int = 100
+    batch_size: int = 64
+    activation_type: str = 'relu'
 
     # Sparsity controls
     sparsity_param: float = 0.1
@@ -46,4 +46,14 @@ class SAEConfig:
     # Transformer parameters
     model_name: str = 'gpt2-small'
     layer: int = 0
-    n_samples: int = 1000
+    n_samples: int = 10000
+    seq_len: int = 20
+
+    # Dead neuron resampling
+    dead_neuron_threshold: float = 1e-3  # below this mean firing rate neuron is 'dead'
+    dead_resample: bool = True
+    dead_resample_window: int = 1000  # steps to consider before resampling
+    dead_resample_strength: float = 1.0  # scaling for resampled weights
+
+    # Normalization
+    normalize_activations: bool = True
