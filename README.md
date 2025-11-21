@@ -309,3 +309,5 @@ This could include techniques for targeted editing of neuron activations or guid
 [2] ["Sparse Autoencoders Find Highly Interpretable Features in Language Models"](https://arxiv.org/abs/2309.08600), Lee et al. (2023)
 
 [3] ["Scaling and evaluating sparse autoencoders"](https://cdn.openai.com/papers/sparse-autoencoders.pdf), OpenAI (2022)
+
+[4] ["How to Read an Artificial Neural Brain"](https://medium.com/@joshuaplacidi/how-to-read-an-artificial-neural-brain-6e092f09b9f1), Joshua Placidi (Medium) — a practical, accessible discussion of techniques for probing neural representations, including an intuitive treatment of superposition and feature entanglement.
